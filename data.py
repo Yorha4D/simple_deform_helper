@@ -1,6 +1,6 @@
 from typing import Dict, Any
 
-G_MODIFIERS_PROPERTY = [  # 修改器复制数据
+G_MODIFIERS_PROPERTY = [  # copy modifier data
     'angle',
     'deform_axis',
     'deform_method',

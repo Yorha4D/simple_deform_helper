@@ -6,7 +6,7 @@ from gpu_extras.batch import batch_for_shader
 from mathutils import Vector
 from bgl import GL_DEPTH_TEST, GL_BLEND, GL_ALPHA
 
-from .data import G_INDICES,  G_MODIFIERS_PROPERTY, G_NAME, Data
+from .data import G_INDICES, G_MODIFIERS_PROPERTY, G_NAME, Data
 from .utils import Pref, Utils
 
 
@@ -45,7 +45,7 @@ class Handler(Data):
             cls.G_SimpleDeformGizmoHandlerDit.clear()
 
 
-class Draw3D(Pref,Data):
+class Draw3D(Pref, Data):
 
     @classmethod
     def draw_3d_shader(cls, pos, indices, color=None, *, shader_name='3D_POLYLINE_UNIFORM_COLOR', draw_type='LINES'):
@@ -89,7 +89,10 @@ class Draw3D(Pref,Data):
         blf.size(font_id, 15, 72)
         blf.color(font_id, 1, 1, 1, 1)
         blf.draw(
-            font_id, f'物体{obj.name_full}缩放值不为1,将会导致简易形变修改器变形,请应用缩放后再进行形变操作')
+            font_id,
+            f'The scaling value of the object {obj.name_full} is not 1,'
+            f' which will cause the deformation of the simple deformation modifier.'
+            f' Please apply the scaling before deformation')
         if obj.scale == Vector((1, 1, 1)):
             Handler.del_handler_text()
 

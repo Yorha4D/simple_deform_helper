@@ -15,8 +15,8 @@ from .data import Data
 class CustomGizmo(Gizmo, Utils, Handler, Data):
     """绘制自定义Gizmo"""
     bl_idname = '_Custom_Gizmo'
-    def setup(self):
 
+    def setup(self):
         self.draw_type = 'None_GizmoGroup_'
         if not hasattr(self, 'custom_shape'):
             self.custom_shape = {}
@@ -40,7 +40,7 @@ class CustomGizmo(Gizmo, Utils, Handler, Data):
         return {'RUNNING_MODAL'}
 
 
-class ViewSimpleDeformGizmo(Gizmo, Utils, Handler,Data,Pref):
+class ViewSimpleDeformGizmo(Gizmo, Utils, Handler, Data, Pref):
     """显示轴向切换拖动点Gizmo(两个点)
     """
     bl_idname = 'ViewSimpleDeformGizmo'
@@ -284,20 +284,20 @@ class ViewSimpleDeformGizmo(Gizmo, Utils, Handler,Data,Pref):
 
     def update_header_text(self, context, mod, origin, up_limits, down_limits):
         if (mod.deform_method in ('TWIST', 'BEND')) and (self.ctrl_mode in ('angle',)):
-            text = f'角度: {math.degrees(mod.angle):.1f}'
+            text = 'Angle: %f'.format(math.degrees(mod.angle))
         elif 'up_limits' == self.ctrl_mode:
-            text = f'上限: {up_limits:.2f}'
+            text = 'upper limit: %f'.format(up_limits)
         elif 'down_limits' == self.ctrl_mode:
-            text = f'下限: {down_limits:.2f}'
+            text = f'lower limit: %f'.format(down_limits)
         else:
-            text = f'系数: {mod.factor:.2f}'
+            text = f'coefficient: %f'.format(mod.factor)
         text += '       '
         text += origin.bl_rna.properties[
             'origin_mode'].enum_items[origin.origin_mode].name
         context.area.header_text_set(text)
 
     def event_ops(self, event, ob, origin):
-        '''通过输入键位来更改属性'''
+        """通过输入键位来更改属性"""
         # event ctrl
         data_path = ('object.SimpleDeformGizmo_PropertyGroup.origin_mode',
                      'object.modifiers.active.origin.SimpleDeformGizmo_PropertyGroup.origin_mode')
@@ -351,9 +351,9 @@ class ViewSimpleDeformGizmo(Gizmo, Utils, Handler,Data,Pref):
         return self.event_ops(event, ob, origin)
 
 
-class SimpleDeformGizmoGroup(GizmoGroup, Utils, Handler, Pref,Data):
-    '''显示Gizmo
-    '''
+class SimpleDeformGizmoGroup(GizmoGroup, Utils, Handler, Pref, Data):
+    """显示Gizmo
+    """
     bl_idname = 'OBJECT_GGT_SimpleDeformGizmoGroup'
     bl_label = 'SimpleDeformGizmoGroup'
     bl_space_type = 'VIEW_3D'
