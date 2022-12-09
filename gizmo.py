@@ -2,56 +2,21 @@ import bpy
 import math
 from bpy_extras import view3d_utils
 from mathutils import Vector, Euler
-from gpu_extras.batch import batch_for_shader
 from bpy.types import (
     Gizmo,
     GizmoGroup,
 )
 
-from draw import Draw3D
+from .draw import Handler
+from .utils import Utils, Pref
+from .data import Data
 
 
-class Handler:
-
-    @classmethod
-    def add_handler(cls):
-        """向3d视图添加绘制handler
-        并将其存储下来
-        """
-        if 'handler' not in Data.G_SimpleDeformGizmoHandlerDit:
-            Data.G_SimpleDeformGizmoHandlerDit['handler'] = bpy.types.SpaceView3D.draw_handler_add(
-                Draw3D.draw_bound_box, (), 'WINDOW', 'POST_VIEW')
-
-    @classmethod
-    def del_handler_text(cls):
-        if 'handler_text' in Data.G_SimpleDeformGizmoHandlerDit:
-            bpy.types.SpaceView3D.draw_handler_remove(
-                Data.G_SimpleDeformGizmoHandlerDit['handler_text'], 'WINDOW')
-            Data.G_SimpleDeformGizmoHandlerDit.pop('handler_text')
-
-    @classmethod
-    def del_handler(cls):
-        data = bpy.data
-        if data.meshes.get(G_NAME):
-            data.meshes.remove(data.meshes.get(G_NAME))
-
-        if data.objects.get(G_NAME):
-            data.objects.remove(data.objects.get(G_NAME))
-
-        cls.del_handler_text()
-        if 'handler' in Data.G_SimpleDeformGizmoHandlerDit:
-            bpy.types.SpaceView3D.draw_handler_remove(
-                Data.G_SimpleDeformGizmoHandlerDit['handler'], 'WINDOW')
-            Data.G_SimpleDeformGizmoHandlerDit.clear()
-
-
-class CustomGizmo(Gizmo, Data, Utils, Handler):
+class CustomGizmo(Gizmo, Utils, Handler, Data):
     """绘制自定义Gizmo"""
     bl_idname = '_Custom_Gizmo'
-    custom_shape = None
-    draw_type = None
-
     def setup(self):
+
         self.draw_type = 'None_GizmoGroup_'
         if not hasattr(self, 'custom_shape'):
             self.custom_shape = {}
@@ -70,12 +35,12 @@ class CustomGizmo(Gizmo, Data, Utils, Handler):
         return {'RUNNING_MODAL'}
 
     def modal(self, context, event, tweak):
-        Utils.update_bound_box(context.object)
-        Utils.update_empty_matrix()
+        self.update_bound_box(context.object)
+        self.update_empty_matrix()
         return {'RUNNING_MODAL'}
 
 
-class ViewSimpleDeformGizmo(Gizmo, Data, Utils, Handler):
+class ViewSimpleDeformGizmo(Gizmo, Utils, Handler,Data,Pref):
     """显示轴向切换拖动点Gizmo(两个点)
     """
     bl_idname = 'ViewSimpleDeformGizmo'
@@ -196,8 +161,8 @@ class ViewSimpleDeformGizmo(Gizmo, Data, Utils, Handler):
         if not hasattr(self, 'custom_shape'):
             self.custom_shape = {}
             for i in self.G_GizmoCustomShapeDict:
-                self.custom_shape[i] = self.new_custom_shape(
-                    'TRIS', self.G_GizmoCustomShapeDict[i])
+                item = self.G_GizmoCustomShapeDict[i]
+                self.custom_shape[i] = self.new_custom_shape('TRIS', item)
         self.add_handler()
 
     def draw(self, context):
@@ -345,7 +310,7 @@ class ViewSimpleDeformGizmo(Gizmo, Data, Utils, Handler):
         elif event.type in ('X', 'Y', 'Z'):
             ob.modifiers.active.deform_axis = event.type
         elif event.type == 'A':
-            self.prefs.display_bend_axis_switch_gizmo = True
+            self.pref.display_bend_axis_switch_gizmo = True
             return {'FINISHED'}
         return {'RUNNING_MODAL'}
 
@@ -361,7 +326,7 @@ class ViewSimpleDeformGizmo(Gizmo, Data, Utils, Handler):
         origin = self.get_origin_property_group(mod, ob)
         origin_mode = origin.origin_mode
         middle = origin_mode in ('LIMITS_MIDDLE', 'MIDDLE')
-        limit_scope = self.prefs.modifiers_limits_tolerance
+        limit_scope = self.pref.modifiers_limits_tolerance
         max_value = up_limits - limit_scope
         min_value = down_limits + limit_scope
         difference_value = up_limits - down_limits
@@ -386,7 +351,7 @@ class ViewSimpleDeformGizmo(Gizmo, Data, Utils, Handler):
         return self.event_ops(event, ob, origin)
 
 
-class SimpleDeformGizmoGroup(GizmoGroup, Data, Utils, Handler):
+class SimpleDeformGizmoGroup(GizmoGroup, Utils, Handler, Pref,Data):
     '''显示Gizmo
     '''
     bl_idname = 'OBJECT_GGT_SimpleDeformGizmoGroup'
@@ -398,9 +363,10 @@ class SimpleDeformGizmoGroup(GizmoGroup, Data, Utils, Handler):
     @classmethod
     def poll(cls, context):
         pol = cls.simple_deform_poll(context)
+        pref = cls._pref()
         deform_method = (
                 pol and (context.object.modifiers.active.deform_method != 'BEND'))
-        display_gizmo = cls.prefs.fget(None).display_bend_axis_switch_gizmo
+        display_gizmo = pref.display_bend_axis_switch_gizmo
         switch = (not display_gizmo)
         return pol and (deform_method or switch)
 
@@ -524,7 +490,7 @@ class SimpleDeformGizmoGroup(GizmoGroup, Data, Utils, Handler):
         self.add_handler()
 
 
-class SimpleDeformGizmoGroupDisplayBendAxiSwitchGizmo(GizmoGroup, Data, Utils, Handler):
+class SimpleDeformGizmoGroupDisplayBendAxiSwitchGizmo(GizmoGroup, Utils, Handler, Pref):
     """绘制切换变型轴的
     变换方向
     """
@@ -540,11 +506,11 @@ class SimpleDeformGizmoGroupDisplayBendAxiSwitchGizmo(GizmoGroup, Data, Utils, H
 
     @classmethod
     def poll(cls, context):
-        prefs = cls.prefs.fget(None)
+        pref = cls._pref()
         simple = cls.simple_deform_poll(context)
         bend = simple and (
                 context.object.modifiers.active.deform_method == 'BEND')
-        switch_axis = (prefs.display_bend_axis_switch_gizmo == True)
+        switch_axis = (pref.display_bend_axis_switch_gizmo == True)
         return switch_axis and bend
 
     def setup(self, context):

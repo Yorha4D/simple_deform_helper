@@ -9,12 +9,13 @@ from bpy.types import (
     AddonPreferences,
     PropertyGroup,
 )
-from .utiles import Data
+
+from .data import G_ADDON_NAME
+from .utils import Pref, Utils
 
 
-
-class SimpleDeformGizmoAddonPreferences(AddonPreferences, Data):
-    bl_idname = Data.addon_name
+class SimpleDeformGizmoAddonPreferences(AddonPreferences, Pref):
+    bl_idname = G_ADDON_NAME
 
     deform_wireframe_color: FloatVectorProperty(
         name='Deform Wireframe',
@@ -64,12 +65,11 @@ class SimpleDeformGizmoAddonPreferences(AddonPreferences, Data):
 
     def draw_header_tool_settings(self, context):
         layout = self.layout
-        from .gizmo import Utils
         if Utils.simple_deform_poll(context):
             layout.separator(factor=5)
             active_mod = context.object.modifiers.active
             prop = context.object.SimpleDeformGizmo_PropertyGroup
-            pref = Data.pref.fget()
+            pref = Pref._pref()
 
             if active_mod.origin:
                 layout.prop(active_mod.origin.SimpleDeformGizmo_PropertyGroup,
@@ -163,12 +163,13 @@ register_class, unregister_class = bpy.utils.register_classes_factory(class_list
 def register():
     register_class()
 
-    Data.prefs.fget().display_bend_axis_switch_gizmo = False
+    Pref._pref().display_bend_axis_switch_gizmo = False
     bpy.types.Object.SimpleDeformGizmo_PropertyGroup = PointerProperty(
         type=SimpleDeformGizmoObjectPropertyGroup,
         name='SimpleDeformGizmo_PropertyGroup')
     bpy.types.VIEW3D_MT_editor_menus.append(
         SimpleDeformGizmoAddonPreferences.draw_header_tool_settings)
+
 
 def unregister():
     unregister_class()

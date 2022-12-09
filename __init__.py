@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
-
+from . import gizmo, operators, preferences, data
 
 bl_info = {
     "name": "SimpleDeformHelper",
@@ -10,14 +10,8 @@ bl_info = {
     "description": "Simple Deform visualization adjustment tool",
     "doc_url": "{BLENDER_MANUAL_URL}/addons/simple_deform_helper/index.html",
     "wiki_url": "",
-    "category": "3D View"
+    # "category": "3D View"
 }
-
-from . import (
-    gizmo,
-    operators,
-    preferences
-)
 
 module_tuple = (
     gizmo,
@@ -27,6 +21,8 @@ module_tuple = (
 
 
 def register():
+    data.Data.load_gizmo_data()
+
     for item in module_tuple:
         item.register()
 
