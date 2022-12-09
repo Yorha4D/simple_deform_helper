@@ -19,7 +19,7 @@ from . import (
     preferences
 )
 
-items = (
+module_tuple = (
     gizmo,
     operators,
     preferences,
@@ -27,10 +27,10 @@ items = (
 
 
 def register():
-    for item in items:
+    for item in module_tuple:
         item.register()
 
 
 def unregister():
-    for item in items:
+    for item in module_tuple:
         item.unregister()
