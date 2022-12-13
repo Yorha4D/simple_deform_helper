@@ -4,7 +4,6 @@ import bpy
 import gpu
 from gpu_extras.batch import batch_for_shader
 from mathutils import Vector
-from bgl import GL_DEPTH_TEST, GL_BLEND, GL_ALPHA
 
 from .data import G_INDICES, G_MODIFIERS_PROPERTY, G_NAME, Data
 from .utils import Pref, Utils
@@ -48,7 +47,7 @@ class Handler(Data):
 class Draw3D(Pref, Data):
 
     @classmethod
-    def draw_3d_shader(cls, pos, indices, color=None, *, shader_name='3D_POLYLINE_UNIFORM_COLOR', draw_type='LINES'):
+    def draw_3d_shader(cls, pos, indices, color=None, *, shader_name='3D_UNIFORM_COLOR', draw_type='LINES'):
         """
         :param draw_type:
         :param shader_name:
@@ -131,7 +130,7 @@ class Draw3D(Pref, Data):
         if 'draw_limits_bound_box' in handler_dit:
             # draw limits_bound_box
             mat, data = handler_dit['draw_limits_bound_box']
-            bgl.glEnable(GL_DEPTH_TEST)
+            bgl.glEnable(bgl.GL_DEPTH_TEST)
             coords = Utils.matrix_calculation(mat, cls.data_to_calculation(data))
             cls.draw_3d_shader(coords,
                                G_INDICES,
@@ -142,7 +141,7 @@ class Draw3D(Pref, Data):
         handler_dit = cls.G_SimpleDeformGizmoHandlerDit
         if 'draw_line' in handler_dit:
             line_pos, limits_pos, = handler_dit['draw_line']
-            bgl.glDisable(GL_DEPTH_TEST)
+            bgl.glDisable(bgl.GL_DEPTH_TEST)
             # draw limits line
             cls.draw_3d_shader(limits_pos, ((1, 0),), (1, 1, 0, 0.5))
             # draw  line
@@ -162,7 +161,7 @@ class Draw3D(Pref, Data):
                 'draw', ob)]
             if ([getattr(active, i) for i in G_MODIFIERS_PROPERTY] == mod_data) and (
                     ob.matrix_world == mat) and limits == active.limits[:]:
-                bgl.glEnable(GL_DEPTH_TEST)
+                bgl.glEnable(bgl.GL_DEPTH_TEST)
                 cls.draw_3d_shader(
                     pos, indices, pref.deform_wireframe_color)
 
@@ -181,7 +180,7 @@ class Draw3D(Pref, Data):
         pref = cls._pref()
         simple_poll = Utils.simple_deform_poll(context)
         bend = modifier and (modifier.deform_method == 'BEND')
-        display_switch_axis = pref.display_bend_axis_switch_gizmo == False
+        display_switch_axis = False == pref.display_bend_axis_switch_gizmo
 
         cls.draw_scale_text(obj)
         Utils.update_co_data(obj, modifier)
@@ -195,7 +194,7 @@ class Draw3D(Pref, Data):
             cls.draw_limits_line()
             cls.draw_limits_bound_box()
         elif simple_poll and (bend and not display_switch_axis):
-            bgl.glDisable(GL_DEPTH_TEST)
+            bgl.glDisable(bgl.GL_DEPTH_TEST)
             cls.draw_box(co_data, matrix)
             Utils.new_empty(obj, modifier)
 
@@ -203,11 +202,11 @@ class Draw3D(Pref, Data):
     def draw_bound_box(cls):
         gpu.state.blend_set('ALPHA')
         gpu.state.line_width_set(1)
-        bgl.glEnable(GL_BLEND)
-        bgl.glEnable(GL_ALPHA)
-        bgl.glDisable(GL_DEPTH_TEST)
-        context = bpy.context
+        bgl.glEnable(bgl.GL_BLEND)
+        bgl.glEnable(bgl.GL_ALPHA)
+        bgl.glDisable(bgl.GL_DEPTH_TEST)
 
+        context = bpy.context
         if Utils.simple_deform_poll(context):
             cls.is_draw_box(context)
         else:

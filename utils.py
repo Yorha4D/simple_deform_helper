@@ -268,11 +268,11 @@ class Utils(Data):
 
     @classmethod
     def update_bound_box(cls, object):
+
         context = bpy.context
         data = bpy.data
         obj = object
         matrix = obj.matrix_world.copy()  # 物体矩阵
-        handler_dit = cls.G_SimpleDeformGizmoHandlerDit
 
         # add simple_deform mesh
         (min_x, min_y, min_z), (max_x, max_y,
@@ -304,8 +304,8 @@ class Utils(Data):
         new_object.modifiers.clear()
         subdivision = new_object.modifiers.new('1', 'SUBSURF')
         subdivision.levels = 7
-        handler_dit['modifiers_co'] = {}
-        handler_dit['modifiers_co']['co'] = (
+        cls.G_SimpleDeformGizmoHandlerDit['modifiers_co'] = {}
+        cls.G_SimpleDeformGizmoHandlerDit['modifiers_co']['co'] = (
             min_x, min_y, min_z), (max_x, max_y, max_z)
         for mo in context.object.modifiers:
             if mo.type == 'SIMPLE_DEFORM':
@@ -322,7 +322,7 @@ class Utils(Data):
                 simple_deform.angle = mo.angle
                 simple_deform.show_viewport = mo.show_viewport
                 obj = Utils.get_depsgraph(new_object)
-                handler_dit['modifiers_co'][mo.name] = cls.get_mesh_max_min_co(
+                cls.G_SimpleDeformGizmoHandlerDit['modifiers_co'][mo.name] = cls.get_mesh_max_min_co(
                     obj)
         new_object.hide_set(True)
         new_object.hide_viewport = False
@@ -333,10 +333,10 @@ class Utils(Data):
         ver_len = obj.data.vertices.__len__()
         edge_len = obj.data.edges.__len__()
 
-        if 'numpy_data' not in handler_dit:
-            handler_dit['numpy_data'] = {}
+        if 'numpy_data' not in cls.G_SimpleDeformGizmoHandlerDit:
+            cls.G_SimpleDeformGizmoHandlerDit['numpy_data'] = {}
 
-        numpy_data = handler_dit['numpy_data']
+        numpy_data = cls.G_SimpleDeformGizmoHandlerDit['numpy_data']
         key = (ver_len, edge_len)
         if key in numpy_data:
             list_edges, list_vertices = numpy_data[key]
@@ -359,19 +359,19 @@ class Utils(Data):
         modifiers = [getattr(context.object.modifiers.active, i)
                      for i in G_MODIFIERS_PROPERTY]
 
-        handler_dit[('draw', obj)] = (ver, indices, matrix, modifiers, limits)
+        cls.G_SimpleDeformGizmoHandlerDit[('draw', obj)] = (ver, indices, matrix, modifiers, limits)
 
     @classmethod
     def update_co_data(cls, ob, mod):
         handler_dit = cls.G_SimpleDeformGizmoHandlerDit
 
-        if 'modifiers_co' in handler_dit and ob.type in ('MESH', 'LATTICE'):
-            modifiers_co = handler_dit['modifiers_co']
+        if 'modifiers_co' in cls.G_SimpleDeformGizmoHandlerDit and ob.type in ('MESH', 'LATTICE'):
+            modifiers_co = cls.G_SimpleDeformGizmoHandlerDit['modifiers_co']
             for index, mod_name in enumerate(modifiers_co):
                 co_items = list(modifiers_co.items())
                 if mod.name == mod_name:
-                    handler_dit['co'] = co_items[index -
-                                                 1][1] if (index or (index != 1)) else modifiers_co['co']
+                    cls.G_SimpleDeformGizmoHandlerDit['co'] = co_items[index - 1][1] if (index or (index != 1)) else \
+                        modifiers_co['co']
 
     @classmethod
     def generate_co_data(cls):

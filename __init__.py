@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
-from . import gizmo, operators, preferences, data
+from . import gizmo, operators, preferences, data,timers
 
 bl_info = {
     "name": "SimpleDeformHelper",
     "author": "AIGODLIKE Community(BlenderCN辣椒,小萌新)",
-    "version": (0, 1, 0),
+    "version": (0, 1, 1),
     "blender": (3, 0, 0),
     "location": "3D View -> Select an object and the active modifier is simple deformation",
     "description": "Simple Deform visualization adjustment tool",
@@ -15,6 +15,7 @@ bl_info = {
 
 module_tuple = (
     gizmo,
+    timers,
     operators,
     preferences,
 )
