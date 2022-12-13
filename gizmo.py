@@ -23,6 +23,7 @@ class CustomGizmo(Gizmo, Utils, Handler, Data):
             for i in self.G_GizmoCustomShapeDict:
                 self.custom_shape[i] = self.new_custom_shape(
                     'TRIS', self.G_GizmoCustomShapeDict[i])
+        self.add_handler()
 
     def draw(self, context):
         self.draw_custom_shape(self.custom_shape[self.draw_type])
@@ -35,6 +36,8 @@ class CustomGizmo(Gizmo, Utils, Handler, Data):
         return {'RUNNING_MODAL'}
 
     def modal(self, context, event, tweak):
+        self.add_handler()
+
         self.update_bound_box(context.object)
         self.update_empty_matrix()
         return {'RUNNING_MODAL'}
@@ -166,6 +169,7 @@ class ViewSimpleDeformGizmo(Gizmo, Utils, Handler, Data, Pref):
         self.add_handler()
 
     def draw(self, context):
+        self.add_handler()
 
         self.update_gizmo_matrix(context)
         self.draw_custom_shape(self.custom_shape[self.draw_type])
@@ -311,6 +315,8 @@ class ViewSimpleDeformGizmo(Gizmo, Utils, Handler, Data, Pref):
         elif event.type == 'A':
             self.pref.display_bend_axis_switch_gizmo = True
             return {'FINISHED'}
+        self.add_handler()
+
         return {'RUNNING_MODAL'}
 
     def modal(self, context, event, tweak):
@@ -346,6 +352,7 @@ class ViewSimpleDeformGizmo(Gizmo, Utils, Handler, Data, Pref):
         self.update_bound_box(context.object)
 
         self.update_header_text(context, mod, origin, up_limits, down_limits)
+        self.add_handler()
 
         return self.event_ops(event, ob, origin)
 
@@ -449,6 +456,7 @@ class SimpleDeformGizmoGroup(GizmoGroup, Utils, Handler, Pref, Data):
             gizmo.use_draw_value = True
             gizmo.scale_basis = 0.1
             setattr(self, f'deform_axis_{axis.lower()}', gizmo)
+        self.add_handler()
 
     def refresh(self, context):
         pro = context.object.SimpleDeformGizmo_PropertyGroup
@@ -468,6 +476,7 @@ class SimpleDeformGizmoGroup(GizmoGroup, Utils, Handler, Pref, Data):
         self.up_limits.target_set_prop('up_limits',
                                        pro,
                                        'up_limits')
+        self.add_handler()
 
     def draw_prepare(self, context):
         ob = context.object
@@ -483,10 +492,10 @@ class SimpleDeformGizmoGroup(GizmoGroup, Utils, Handler, Pref, Data):
             self.deform_axis_x.matrix_basis.translation = _mat(0)
             self.deform_axis_y.matrix_basis.translation = _mat(0.3)
             self.deform_axis_z.matrix_basis.translation = _mat(0.6)
+        self.add_handler()
 
     def invoke_prepare(self, context, gizmo):
-        # self.add_handler()
-        ...
+        self.add_handler()
 
 
 class SimpleDeformGizmoGroupDisplayBendAxiSwitchGizmo(GizmoGroup, Utils, Handler, Pref):
@@ -516,6 +525,7 @@ class SimpleDeformGizmoGroupDisplayBendAxiSwitchGizmo(GizmoGroup, Utils, Handler
         _draw_type = 'SimpleDeform_Bend_Direction_'
         _color_a = 1, 0, 0
         _color_b = 0, 1, 0
+        self.add_handler()
 
         for na, axis, rot, positive in (
                 ('top_a', 'X', (math.radians(90), 0, math.radians(90)), True),
