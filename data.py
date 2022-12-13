@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from os.path import dirname, basename, realpath
 
 G_MODIFIERS_PROPERTY = [  # copy modifier data
     'angle',
@@ -23,7 +23,7 @@ G_INDICES = (
 
 G_NAME = 'ViewSimpleDeformGizmo_'  # Temporary use files
 G_CON_LIMIT_NAME = G_NAME + 'constraints_limit_rotation'  # 约束名称
-G_ADDON_NAME = "simple_deform_helper"
+G_ADDON_NAME = basename(dirname(realpath(__file__)))  # "simple_deform_helper"
 
 
 class Data:
