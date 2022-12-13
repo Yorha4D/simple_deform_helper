@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
-from . import gizmo, operators, preferences, data,timers
+from . import gizmo, operators, preferences, data,timers,translate
 
 bl_info = {
     "name": "SimpleDeformHelper",
@@ -8,14 +8,15 @@ bl_info = {
     "blender": (3, 0, 0),
     "location": "3D View -> Select an object and the active modifier is simple deformation",
     "description": "Simple Deform visualization adjustment tool",
-    "doc_url": "{BLENDER_MANUAL_URL}/addons/simple_deform_helper/index.html",
+    "doc_url": "https://github.com/Yorha4D/simple_deform_helper/blob/main/README_CN.md",
     "wiki_url": "",
-    # "category": "3D View"
+    "category": "3D View"
 }
 
 module_tuple = (
     gizmo,
     timers,
+    translate,
     operators,
     preferences,
 )

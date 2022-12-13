@@ -286,17 +286,19 @@ class ViewSimpleDeformGizmo(Gizmo, Utils, Handler, Data, Pref):
             self.set_down_value(data, mu)
 
     def update_header_text(self, context, mod, origin, up_limits, down_limits):
+        t = lambda a: bpy.app.translations.pgettext(a)
+
         if (mod.deform_method in ('TWIST', 'BEND')) and (self.ctrl_mode in ('angle',)):
-            text = 'Angle: %f'.format(math.degrees(mod.angle))
+            text = t("Angle") + ':{}'.format(math.degrees(mod.angle))
         elif 'up_limits' == self.ctrl_mode:
-            text = 'upper limit: %f'.format(up_limits)
+            text = t("Upper limit") + ':{}'.format(up_limits)
         elif 'down_limits' == self.ctrl_mode:
-            text = f'lower limit: %f'.format(down_limits)
+            text = t("Down limit") + ':{}'.format(down_limits)
         else:
-            text = f'coefficient: %f'.format(mod.factor)
+            text = t("Coefficient") + ':{}'.format(mod.factor)
         text += '       '
-        text += origin.bl_rna.properties[
-            'origin_mode'].enum_items[origin.origin_mode].name
+        text += t(origin.bl_rna.properties[
+            'origin_mode'].enum_items[origin.origin_mode].name)
         context.area.header_text_set(text)
 
     def event_ops(self, event, ob, origin):
