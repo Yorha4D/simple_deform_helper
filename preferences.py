@@ -129,11 +129,11 @@ class SimpleDeformGizmoObjectPropertyGroup(PropertyGroup):
 
     origin_mode_items = (
         ('UP_LIMITS',
-         'Follow Upper Limit',
+         'Follow Upper Limit(Red)',
          'Add an empty object origin as the rotation axis (if there is an origin, do not add it), and set the origin '
          'position as the upper limit during operation'),
         ('DOWN_LIMITS',
-         'Follow Lower Limit',
+         'Follow Lower Limit(Green)',
          'Add an empty object origin as the rotation axis (if there is an origin, do not add it), and set the origin '
          'position as the lower limit during operation'),
         ('LIMITS_MIDDLE',

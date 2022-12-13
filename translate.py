@@ -9,10 +9,10 @@ def origin_text(a, b):
 translations_dict = {
     "zh_CN": {
         ("上下文", "原文"): "翻译文字",
-        ("*", "Follow Upper Limit"): "跟随上限",
         ("*", "Show Toggle Axis Gizmo"): "显示切换轴向Gizmo",
 
-        ("*", "Follow Lower Limit"): "跟随下限",
+        ("*", "Follow Upper Limit(Red)"): "跟随上限(红色)",
+        ("*", "Follow Lower Limit(Green)"): "跟随下限(绿色)",
         ("*", "Lower limit(Green)"): "下限(绿色)",
         ("*", "UP Limits(Red)"): "上限(红色)",
         ("*", "Minimum value between upper and lower limits"): "上限与下限之间的最小值",
