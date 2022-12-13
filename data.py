@@ -25,19 +25,18 @@ G_NAME = 'ViewSimpleDeformGizmo_'  # Temporary use files
 G_CON_LIMIT_NAME = G_NAME + 'constraints_limit_rotation'  # 约束名称
 G_ADDON_NAME = "simple_deform_helper"
 
+
 class Data:
     G_GizmoCustomShapeDict = {}
     G_SimpleDeformGizmoHandlerDit = {}
-
 
     @classmethod
     def load_gizmo_data(cls) -> None:
         import json
         import os
         json_path = os.path.join(os.path.dirname(__file__), "gizmo.json")
-        with open(json_path,"r") as file:
+        with open(json_path, "r") as file:
             cls.G_GizmoCustomShapeDict = json.load(file)
-
 
     @staticmethod
     def from_bmesh_get_triangle_face_co(mesh: 'bpy.types.Mesh') -> list:

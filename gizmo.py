@@ -191,7 +191,6 @@ class ViewSimpleDeformGizmo(Gizmo, Utils, Handler, Data, Pref):
         elif 'down_limits' == self.ctrl_mode:
             self.int_value_down_limits = down_limits
             self.target_set_value('down_limits', self.int_value_down_limits)
-        self.add_handler()
         return {'RUNNING_MODAL'}
 
     def exit(self, context, cancel):
@@ -469,7 +468,6 @@ class SimpleDeformGizmoGroup(GizmoGroup, Utils, Handler, Pref, Data):
         self.up_limits.target_set_prop('up_limits',
                                        pro,
                                        'up_limits')
-        self.add_handler()
 
     def draw_prepare(self, context):
         ob = context.object
@@ -487,7 +485,8 @@ class SimpleDeformGizmoGroup(GizmoGroup, Utils, Handler, Pref, Data):
             self.deform_axis_z.matrix_basis.translation = _mat(0.6)
 
     def invoke_prepare(self, context, gizmo):
-        self.add_handler()
+        # self.add_handler()
+        ...
 
 
 class SimpleDeformGizmoGroupDisplayBendAxiSwitchGizmo(GizmoGroup, Utils, Handler, Pref):
