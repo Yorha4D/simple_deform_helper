@@ -359,7 +359,7 @@ class Utils(Data):
         modifiers = [getattr(context.object.modifiers.active, i)
                      for i in G_MODIFIERS_PROPERTY]
 
-        cls.G_SimpleDeformGizmoHandlerDit[('draw', obj)] = (ver, indices, matrix, modifiers, limits)
+        cls.G_SimpleDeformGizmoHandlerDit['draw'] = (ver, indices, matrix, modifiers, limits)
 
     @classmethod
     def update_co_data(cls, ob, mod):

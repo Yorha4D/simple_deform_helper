@@ -156,9 +156,8 @@ class Draw3D(Pref, Data):
         handler_dit = cls.G_SimpleDeformGizmoHandlerDit
         active = context.object.modifiers.active
         # draw deform mesh
-        if ('draw', ob) in handler_dit:
-            pos, indices, mat, mod_data, limits = handler_dit[(
-                'draw', ob)]
+        if 'draw' in handler_dit:
+            pos, indices, mat, mod_data, limits = handler_dit['draw']
             if ([getattr(active, i) for i in G_MODIFIERS_PROPERTY] == mod_data) and (
                     ob.matrix_world == mat) and limits == active.limits[:]:
                 bgl.glEnable(bgl.GL_DEPTH_TEST)
