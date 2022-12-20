@@ -104,7 +104,7 @@ class Draw3D(Pref, Data):
 
     @classmethod
     def draw_box(cls, data, mat):
-        pref = cls._pref()
+        pref = cls.pref_()
         coords = Utils.matrix_calculation(mat,
                                           cls.data_to_calculation(data))
         cls.draw_3d_shader(coords, G_INDICES, pref.bound_box_color)
@@ -125,7 +125,7 @@ class Draw3D(Pref, Data):
     @classmethod
     def draw_limits_bound_box(cls):
 
-        pref = cls._pref()
+        pref = cls.pref_()
         handler_dit = cls.G_SimpleDeformGizmoHandlerDit
         if 'draw_limits_bound_box' in handler_dit:
             # draw limits_bound_box
@@ -152,7 +152,7 @@ class Draw3D(Pref, Data):
 
     @classmethod
     def draw_deform_mesh(cls, ob, context):
-        pref = cls._pref()
+        pref = cls.pref_()
         handler_dit = cls.G_SimpleDeformGizmoHandlerDit
         active = context.object.modifiers.active
         # draw deform mesh
@@ -176,7 +176,7 @@ class Draw3D(Pref, Data):
         matrix = obj.matrix_world  # 活动物体矩阵
         modifier = context.object.modifiers.active  # 活动修改器
 
-        pref = cls._pref()
+        pref = cls.pref_()
         simple_poll = Utils.simple_deform_poll(context)
         bend = modifier and (modifier.deform_method == 'BEND')
         display_switch_axis = False == pref.display_bend_axis_switch_gizmo
@@ -199,6 +199,8 @@ class Draw3D(Pref, Data):
 
     @classmethod
     def draw_bound_box(cls):
+        
+        # return 
         gpu.state.blend_set('ALPHA')
         gpu.state.line_width_set(1)
         bgl.glEnable(bgl.GL_BLEND)

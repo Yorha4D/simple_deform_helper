@@ -11,7 +11,7 @@ from .data import G_ADDON_NAME, G_NAME, G_INDICES, G_MODIFIERS_PROPERTY, G_CON_L
 
 class Pref:
     @staticmethod
-    def _pref() -> "AddonPreferences":
+    def pref_() -> "AddonPreferences":
         return bpy.context.preferences.addons[G_ADDON_NAME].preferences
 
     @property
@@ -19,7 +19,7 @@ class Pref:
         """
         :return: AddonPreferences
         """
-        return Pref._pref()
+        return Pref.pref_()
 
 
 class Utils(Data):
@@ -176,7 +176,7 @@ class Utils(Data):
 
     @classmethod
     def set_empty_obj_matrix(cls, origin_mode, empty_object, up_, down_, up, down):
-        tow = (2, 2, 2)
+        tow = [2, 2, 2]
         if origin_mode == 'UP_LIMITS':
             empty_object.matrix_world.translation = Vector(up_)
         elif origin_mode == 'DOWN_LIMITS':
@@ -260,7 +260,7 @@ class Utils(Data):
                                        left, right, front, back)
 
         ex = lambda a: cls.set_reduce(down, cls.set_reduce(cls.set_reduce(
-            up, down, '-'), (a, a, a), '*'), '+')
+            up, down, '-'), [a, a, a], '*'), '+')
 
         up_ = ex(up_limits)
         down_ = ex(down_limits)
@@ -437,7 +437,7 @@ class Utils(Data):
         d = mat @ Vector((min_x, min_y, max_z))
 
         def pos_get(a, b):
-            return cls.set_reduce(cls.set_reduce(a, b, '+'), (2, 2, 2), '/')
+            return cls.set_reduce(cls.set_reduce(a, b, '+'), [2, 2, 2], '/')
 
         top = Vector(pos_get(a, d))
         bottom = Vector(pos_get(c, b))

@@ -129,6 +129,7 @@ class ViewSimpleDeformGizmo(Gizmo, Utils, Handler, Data, Pref):
             self.matrix_basis.translation = down_
 
     def update_gizmo_matrix(self, context):
+
         ob = context.object
         mat = ob.matrix_world
         mod = context.object.modifiers.active
@@ -298,7 +299,7 @@ class ViewSimpleDeformGizmo(Gizmo, Utils, Handler, Data, Pref):
             text = t("Coefficient") + ':{}'.format(mod.factor)
         text += '       '
         text += t(origin.bl_rna.properties[
-            'origin_mode'].enum_items[origin.origin_mode].name)
+                      'origin_mode'].enum_items[origin.origin_mode].name)
         context.area.header_text_set(text)
 
     def event_ops(self, event, ob, origin):
@@ -366,12 +367,12 @@ class SimpleDeformGizmoGroup(GizmoGroup, Utils, Handler, Pref, Data):
     bl_label = 'SimpleDeformGizmoGroup'
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'WINDOW'
-    bl_options = {'3D', 'PERSISTENT', }
+    bl_options = {'3D', 'PERSISTENT' }
 
     @classmethod
     def poll(cls, context):
         pol = cls.simple_deform_poll(context)
-        pref = cls._pref()
+        pref = cls.pref_()
         deform_method = (
                 pol and (context.object.modifiers.active.deform_method != 'BEND'))
         display_gizmo = pref.display_bend_axis_switch_gizmo
@@ -480,24 +481,24 @@ class SimpleDeformGizmoGroup(GizmoGroup, Utils, Handler, Pref, Data):
                                        'up_limits')
         self.add_handler()
 
-    def draw_prepare(self, context):
-        ob = context.object
-        mat = ob.matrix_world
+    # def draw_prepare(self, context):
+    #     ob = context.object
+    #     mat = ob.matrix_world
+    #
+    #     if 'co' in self.G_SimpleDeformGizmoHandlerDit:
+    #         def _mat(f):
+    #             co = self.G_SimpleDeformGizmoHandlerDit['co'][0]
+    #             co = (co[0] + (max(ob.dimensions) * f), co[1],
+    #                   co[2] - (min(ob.dimensions) * 0.3))
+    #             return mat @ Vector(co)
+    #
+    #         self.deform_axis_x.matrix_basis.translation = _mat(0)
+    #         self.deform_axis_y.matrix_basis.translation = _mat(0.3)
+    #         self.deform_axis_z.matrix_basis.translation = _mat(0.6)
+    #     self.add_handler()
 
-        if 'co' in self.G_SimpleDeformGizmoHandlerDit:
-            def _mat(f):
-                co = self.G_SimpleDeformGizmoHandlerDit['co'][0]
-                co = (co[0] + (max(ob.dimensions) * f), co[1],
-                      co[2] - (min(ob.dimensions) * 0.3))
-                return mat @ Vector(co)
-
-            self.deform_axis_x.matrix_basis.translation = _mat(0)
-            self.deform_axis_y.matrix_basis.translation = _mat(0.3)
-            self.deform_axis_z.matrix_basis.translation = _mat(0.6)
-        self.add_handler()
-
-    def invoke_prepare(self, context, gizmo):
-        self.add_handler()
+    # def invoke_prepare(self, context, gizmo):
+    #     self.add_handler()
 
 
 class SimpleDeformGizmoGroupDisplayBendAxiSwitchGizmo(GizmoGroup, Utils, Handler, Pref):
@@ -516,7 +517,7 @@ class SimpleDeformGizmoGroupDisplayBendAxiSwitchGizmo(GizmoGroup, Utils, Handler
 
     @classmethod
     def poll(cls, context):
-        pref = cls._pref()
+        pref = cls.pref_()
         simple = cls.simple_deform_poll(context)
         bend = simple and (
                 context.object.modifiers.active.deform_method == 'BEND')

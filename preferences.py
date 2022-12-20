@@ -1,4 +1,3 @@
-import os
 import bpy
 from bpy.props import (FloatProperty,
                        PointerProperty,
@@ -17,29 +16,27 @@ from .utils import Pref, Utils
 class SimpleDeformGizmoAddonPreferences(AddonPreferences, Pref):
     bl_idname = G_ADDON_NAME
 
+    default_color_data = {"soft_max": 1,
+                          "soft_min": 0,
+                          "size": 4,
+                          "subtype": "COLOR",
+                          }
+
     deform_wireframe_color: FloatVectorProperty(
         name='Deform Wireframe',
         description='Draw Deform Wireframe Color',
         default=(1, 1, 1, 0.3),
-        soft_max=1,
-        soft_min=0,
-        size=4, subtype='COLOR')
+        **default_color_data)
     bound_box_color: FloatVectorProperty(
         name='Bound Box',
         description='Draw Bound Box Color',
         default=(1, 0, 0, 0.1),
-        soft_max=1,
-        soft_min=0,
-        size=4,
-        subtype='COLOR')
+        **default_color_data)
     limits_bound_box_color: FloatVectorProperty(
         name='Upper and lower limit Bound Box Color',
         description='Draw Upper and lower limit Bound Box Color',
         default=(0.3, 1, 0.2, 0.5),
-        soft_max=1,
-        soft_min=0,
-        size=4,
-        subtype='COLOR')
+        **default_color_data)
     modifiers_limits_tolerance: FloatProperty(
         name='Upper and lower limit tolerance',
         description='Minimum value between upper and lower limits',
@@ -69,7 +66,7 @@ class SimpleDeformGizmoAddonPreferences(AddonPreferences, Pref):
             layout.separator(factor=5)
             active_mod = context.object.modifiers.active
             prop = context.object.SimpleDeformGizmo_PropertyGroup
-            pref = Pref._pref()
+            pref = Pref.pref_()
 
             if active_mod.origin:
                 layout.prop(active_mod.origin.SimpleDeformGizmo_PropertyGroup,
@@ -163,7 +160,7 @@ register_class, unregister_class = bpy.utils.register_classes_factory(class_list
 def register():
     register_class()
 
-    Pref._pref().display_bend_axis_switch_gizmo = False
+    Pref.pref_().display_bend_axis_switch_gizmo = False
     bpy.types.Object.SimpleDeformGizmo_PropertyGroup = PointerProperty(
         type=SimpleDeformGizmoObjectPropertyGroup,
         name='SimpleDeformGizmo_PropertyGroup')
