@@ -6,7 +6,8 @@ import numpy as np
 from bpy.types import AddonPreferences
 from mathutils import Vector, Matrix
 
-from .data import G_ADDON_NAME, G_NAME, G_INDICES, G_MODIFIERS_PROPERTY, G_CON_LIMIT_NAME, Data
+from .data import G_ADDON_NAME, G_NAME, G_INDICES, G_MODIFIERS_PROPERTY, G_CON_LIMIT_NAME
+from .draw import Draw3D
 
 
 class Pref:
@@ -22,14 +23,14 @@ class Pref:
         return Pref.pref_()
 
 
-class Utils(Data):
+class Utils(Draw3D):
     @classmethod
     def set_reduce(cls, list_a, list_b, operation_type='-') -> list:
         """
         :param list_a: 列表a
-        :type list_a: list or set
+        :type list_a: list or tuple
         :param list_b: 列表b
-        :type list_b:list or set
+        :type list_b:list or tuple
         :param operation_type :运算方法Enumerator in ['+','-','*','/'].
         :type operation_type :str
         :return list: 反回运算后的列表
@@ -151,6 +152,11 @@ class Utils(Data):
 
     @classmethod
     def get_mesh_max_min_co(cls, obj: 'bpy.context.object') -> tuple:
+        """获取网格的最大最小坐标
+
+        :param obj:
+        :return:
+        """
         if obj.type == 'MESH':
             ver_len = obj.data.vertices.__len__()
             list_vertices = np.zeros(ver_len * 3, dtype=np.float32)
@@ -164,7 +170,7 @@ class Utils(Data):
         return tuple(list_vertices.min(axis=0)), tuple(list_vertices.max(axis=0))
 
     @classmethod
-    def matrix_calculation(cls, mat: 'Matrix', calculation_list: 'list') -> list:
+    def matrix_calculation(cls, mat: 'Matrix', calculation_list: 'iter') -> list:
         return [mat @ Vector(i) for i in calculation_list]
 
     @classmethod
@@ -191,6 +197,11 @@ class Utils(Data):
 
     @classmethod
     def get_vector_axis(cls, mod):
+        """获取矢量轴
+
+        :param mod:
+        :return:
+        """
         axis = mod.deform_axis
         if 'BEND' == mod.deform_method:
             vector_axis = Vector((0, 0, 1)) if axis in (
@@ -204,6 +215,14 @@ class Utils(Data):
 
     @classmethod
     def point_to_angle(cls, i, j, f, axis_):
+        """仨个点转换为角度
+
+        :param i:
+        :param j:
+        :param f:
+        :param axis_:
+        :return:
+        """
         if i == j:
             if f == 0:
                 i[0] += 0.1
@@ -221,6 +240,18 @@ class Utils(Data):
 
     @classmethod
     def get_up_down(cls, mod, axis, top, bottom, left, right, front, back):
+        """获取向上轴和向下轴
+
+        :param mod:
+        :param axis:
+        :param top:
+        :param bottom:
+        :param left:
+        :param right:
+        :param front:
+        :param back:
+        :return:
+        """
         if 'BEND' == mod.deform_method:
             if axis in ('X', 'Y'):
                 return top, bottom
@@ -236,6 +267,12 @@ class Utils(Data):
 
     @classmethod
     def get_limits_pos(cls, mod, data):
+        """获取限制点
+
+        :param mod:
+        :param data:
+        :return:
+        """
         top, bottom, left, right, front, back = data
         up_limits = mod.limits[1]
         down_limits = mod.limits[0]
@@ -259,24 +296,22 @@ class Utils(Data):
             up, down = cls.get_up_down(mod, axis, top, bottom,
                                        left, right, front, back)
 
-        ex = lambda a: cls.set_reduce(down, cls.set_reduce(cls.set_reduce(
+        e = lambda a: cls.set_reduce(down, cls.set_reduce(cls.set_reduce(
             up, down, '-'), [a, a, a], '*'), '+')
 
-        up_ = ex(up_limits)
-        down_ = ex(down_limits)
+        up_ = e(up_limits)
+        down_ = e(down_limits)
         return (up, down), (up_, down_)
 
     @classmethod
-    def update_bound_box(cls, object):
-
+    def update_bound_box(cls, obj):
         context = bpy.context
         data = bpy.data
-        obj = object
         matrix = obj.matrix_world.copy()  # 物体矩阵
 
         # add simple_deform mesh
         (min_x, min_y, min_z), (max_x, max_y,
-                                max_z) = cls.get_mesh_max_min_co(object)
+                                max_z) = cls.get_mesh_max_min_co(obj)
         vertexes = ((max_x, min_y, min_z),
                     (min_x, min_y, min_z),
                     (max_x, max_y, min_z),
@@ -304,9 +339,8 @@ class Utils(Data):
         new_object.modifiers.clear()
         subdivision = new_object.modifiers.new('1', 'SUBSURF')
         subdivision.levels = 7
-        cls.G_SimpleDeformGizmoHandlerDit['modifiers_co'] = {}
-        cls.G_SimpleDeformGizmoHandlerDit['modifiers_co']['co'] = (
-            min_x, min_y, min_z), (max_x, max_y, max_z)
+        from .draw import Draw3D
+        Draw3D.modifiers_co["co"] = (min_x, min_y, min_z), (max_x, max_y, max_z)
         for mo in context.object.modifiers:
             if mo.type == 'SIMPLE_DEFORM':
                 simple_deform = new_object.modifiers.new(
@@ -322,8 +356,7 @@ class Utils(Data):
                 simple_deform.angle = mo.angle
                 simple_deform.show_viewport = mo.show_viewport
                 obj = Utils.get_depsgraph(new_object)
-                cls.G_SimpleDeformGizmoHandlerDit['modifiers_co'][mo.name] = cls.get_mesh_max_min_co(
-                    obj)
+                Draw3D.modifiers_co[mo.name] = cls.get_mesh_max_min_co(obj)
         new_object.hide_set(True)
         new_object.hide_viewport = False
         new_object.hide_select = True
@@ -333,17 +366,14 @@ class Utils(Data):
         ver_len = obj.data.vertices.__len__()
         edge_len = obj.data.edges.__len__()
 
-        if 'numpy_data' not in cls.G_SimpleDeformGizmoHandlerDit:
-            cls.G_SimpleDeformGizmoHandlerDit['numpy_data'] = {}
-
-        numpy_data = cls.G_SimpleDeformGizmoHandlerDit['numpy_data']
         key = (ver_len, edge_len)
-        if key in numpy_data:
-            list_edges, list_vertices = numpy_data[key]
+        if key in cls.numpy_data:
+            list_edges, list_vertices = cls.numpy_data[key]
         else:
             list_edges = np.zeros(edge_len * 2, dtype=np.int32)
             list_vertices = np.zeros(ver_len * 3, dtype=np.float32)
-            numpy_data[key] = (list_edges, list_vertices)
+            cls.numpy_data[key] = (list_edges, list_vertices)
+
         obj.data.vertices.foreach_get('co', list_vertices)
         ver = list_vertices.reshape((ver_len, 3))
         ver = np.insert(ver, 3, 1, axis=1).T
@@ -359,31 +389,35 @@ class Utils(Data):
         modifiers = [getattr(context.object.modifiers.active, i)
                      for i in G_MODIFIERS_PROPERTY]
 
-        cls.G_SimpleDeformGizmoHandlerDit['draw'] = (ver, indices, matrix, modifiers, limits)
+        # cls.G_SimpleDeformGizmoHandlerDit['draw'] = (ver, indices, matrix, modifiers, limits)
+        # TODO draw
 
     @classmethod
     def update_co_data(cls, ob, mod):
-        handler_dit = cls.G_SimpleDeformGizmoHandlerDit
 
-        if 'modifiers_co' in cls.G_SimpleDeformGizmoHandlerDit and ob.type in ('MESH', 'LATTICE'):
-            modifiers_co = cls.G_SimpleDeformGizmoHandlerDit['modifiers_co']
+        if cls.modifiers_co and ob.type in ('MESH', 'LATTICE'):
+            modifiers_co = cls.modifiers_co
             for index, mod_name in enumerate(modifiers_co):
                 co_items = list(modifiers_co.items())
                 if mod.name == mod_name:
-                    cls.G_SimpleDeformGizmoHandlerDit['co'] = co_items[index - 1][1] if (index or (index != 1)) else \
-                        modifiers_co['co']
+                    cls.modifiers_co["co"] = co_items[index - 1][1] if (index or (index != 1)) else \
+                        modifiers_co["co"]
 
     @classmethod
     def generate_co_data(cls):
-        handler_dit = cls.G_SimpleDeformGizmoHandlerDit
 
-        if 'co' not in handler_dit:
-            handler_dit['co'] = cls.get_mesh_max_min_co(
+        if 'co' not in cls.modifiers_co:
+            cls.modifiers_co['co'] = cls.get_mesh_max_min_co(
                 bpy.context.object)
-        return handler_dit['co']
+        return cls.modifiers_co['co']
 
     @classmethod
     def new_empty(cls, obj, mod):
+        """新建空物体作为轴来使用
+        :param obj:
+        :param mod:
+        :return:
+        """
         origin = mod.origin
         if origin is None:
             new_name = G_NAME + '_Empty_' + str(uuid.uuid4())
@@ -429,6 +463,12 @@ class Utils(Data):
 
     @classmethod
     def co_to_direction(cls, mat, data):
+        """坐标到方向
+
+        :param mat:
+        :param data:
+        :return:
+        """
         (min_x, min_y, min_z), (max_x, max_y,
                                 max_z) = data
         a = mat @ Vector((max_x, max_y, max_z))
@@ -449,17 +489,28 @@ class Utils(Data):
 
     @classmethod
     def each_face_pos(cls, mat: 'Matrix' = None):
+        """获取每个面的点,用作选择轴的点
+
+        :param mat:
+        :return:
+        """
         if mat is None:
             mat = Matrix()
-        return cls.co_to_direction(mat, cls.G_SimpleDeformGizmoHandlerDit['co'])
+        return cls.co_to_direction(mat, cls.modifiers_co["co"])
 
     @classmethod
     def update_matrix(cls, mod, ob):
+        """更新矩阵
+
+        :param mod:
+        :param ob:
+        :return:
+        """
         if mod.deform_method == 'BEND':
             cls.new_empty(ob, mod)
         if mod.origin:
             empty_object = mod.origin
-            modifiers_co = cls.G_SimpleDeformGizmoHandlerDit['modifiers_co']
+            modifiers_co = cls.modifiers_co
             for index, mod_name in enumerate(modifiers_co):
                 co_items = list(modifiers_co.items())
                 if mod.name == mod_name:
@@ -500,6 +551,15 @@ class Utils(Data):
                 top = up_
                 bottom = down_
         return top, bottom, left, right, front, back
+
+
+def get_active_simple_modifier() -> "bpy.types.Modifier":
+    """获取活动简易形变修改器
+    :return:
+    """
+    obj = bpy.context.object
+    if obj.modifiers and obj.modifiers.active.type == 'SIMPLE_DEFORM':
+        return obj.modifiers.active
 
 
 def register():

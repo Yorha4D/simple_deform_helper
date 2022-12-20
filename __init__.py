@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
-from . import gizmo, operators, preferences, data,timers,translate
+from . import operators, preferences, timers, translate
+from .gizmo import gizmo
 
 bl_info = {
     "name": "SimpleDeformHelper",
@@ -23,8 +24,6 @@ module_tuple = (
 
 
 def register():
-    data.Data.load_gizmo_data()
-
     for item in module_tuple:
         item.register()
 

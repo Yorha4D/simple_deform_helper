@@ -2,6 +2,7 @@ import bpy
 from bpy.app import timers
 from bpy.app.handlers import undo_post, persistent, undo_pre
 
+
 def remove_not_use_empty(remove_name: str = "ViewSimpleDeformGizmo__Empty_"):
     """循环场景内的所有物体,找出没用的空物体并删掉
     """
@@ -13,18 +14,15 @@ def remove_not_use_empty(remove_name: str = "ViewSimpleDeformGizmo__Empty_"):
         if name_ok and not_parent and is_empty:
             bpy.data.objects.remove(obj)  # remove object
 
+
 @persistent
 def clear_data_pre(scene):
     print('clear_data_pre', scene)
-    from .data import Data
-    Data.G_SimpleDeformGizmoHandlerDit.clear()
 
 
 @persistent
 def clear_data_post(scene):
     print('clear_data_post', scene)
-    from .data import Data
-    Data.G_SimpleDeformGizmoHandlerDit.clear()
 
 
 def update_timers() -> float:

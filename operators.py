@@ -5,7 +5,7 @@ from bpy.props import FloatProperty, StringProperty, BoolProperty
 from .utils import Pref
 
 
-class DeformAxisOperator(Operator,Pref):
+class DeformAxisOperator(Operator, Pref):
     bl_idname = 'simple_deform_gizmo.deform_axis'
     bl_label = 'deform_axis'
     bl_description = 'deform_axis operator'
@@ -19,15 +19,12 @@ class DeformAxisOperator(Operator,Pref):
 
     Is_Positive: BoolProperty(default=True, options={'SKIP_SAVE'})
 
-    def execute(self, context):
-        return {'RUNNING_MODAL'}
-
     def invoke(self, context, event):
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
 
     def modal(self, context, event):
-        from .gizmo import Utils
+        from gizmo.gizmo import Utils
 
         mod = context.object.modifiers.active
         mod.deform_axis = self.Deform_Axis

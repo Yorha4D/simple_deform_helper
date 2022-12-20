@@ -9,8 +9,8 @@ from bpy.types import (
     PropertyGroup,
 )
 
-from .data import G_ADDON_NAME
-from .utils import Pref, Utils
+from .data import G_ORIGIN_MODE_ITEMS, G_ADDON_NAME
+from .utils import Pref, Utils, get_active_simple_modifier
 
 
 class SimpleDeformGizmoAddonPreferences(AddonPreferences, Pref):
@@ -51,16 +51,17 @@ class SimpleDeformGizmoAddonPreferences(AddonPreferences, Pref):
 
     def draw(self, context):
         layout = self.layout
-        if __name__ is None:
-            from bpy.types import Panel
-            layout = Panel.layout
         layout.prop(self, 'deform_wireframe_color')
         layout.prop(self, 'bound_box_color')
         layout.prop(self, 'limits_bound_box_color')
         layout.prop(self, 'modifiers_limits_tolerance')
         layout.prop(self, 'display_bend_axis_switch_gizmo')
 
-    def draw_header_tool_settings(self, context):
+    def draw_header_tool_settings(self, context) -> None:
+        """绘制工具栏,在显示Gizmo时显示在顶栏
+        :param context:
+        :return: None
+        """
         layout = self.layout
         if Utils.simple_deform_poll(context):
             layout.separator(factor=5)
@@ -96,57 +97,51 @@ class SimpleDeformGizmoAddonPreferences(AddonPreferences, Pref):
                         'factor')
 
 
+@staticmethod
+def get_limits(index) -> float:
+    """输入索引反回限制值
+
+    :param index:
+    :return:
+    """
+    mod = get_active_simple_modifier()
+    if mod:
+        return mod.limits[index]
+    return 114
+
+
+@staticmethod
+def set_limits(value, index) -> None:
+    """设置限制值
+    :param value:
+    :param index:
+    :return:
+    """
+    mod = get_active_simple_modifier()
+    if mod:
+        mod.limits[index] = value
+
+
 class SimpleDeformGizmoObjectPropertyGroup(PropertyGroup):
-
-    def _limits_up(self, context):
-        mod = context.object.modifiers
-        if mod and (mod.active.type == 'SIMPLE_DEFORM'):
-            mod = mod.active
-            mod.limits[1] = self.up_limits
-
     up_limits: FloatProperty(name='up',
                              description='UP Limits(Red)',
+                             get=lambda _: get_limits(0),
+                             set=lambda _, value: set_limits(value, 0),
                              default=1,
-                             update=_limits_up,
                              max=1,
                              min=0)
 
-    def _limits_down(self, context):
-        mod = context.object.modifiers
-        if mod and (mod.active.type == 'SIMPLE_DEFORM'):
-            mod = mod.active
-            mod.limits[0] = self.down_limits
-
     down_limits: FloatProperty(name='down',
                                description='Lower limit(Green)',
+                               get=lambda _: get_limits(1),
+                               set=lambda _, value: set_limits(value, 1),
                                default=0,
-                               update=_limits_down,
                                max=1,
                                min=0)
 
-    origin_mode_items = (
-        ('UP_LIMITS',
-         'Follow Upper Limit(Red)',
-         'Add an empty object origin as the rotation axis (if there is an origin, do not add it), and set the origin '
-         'position as the upper limit during operation'),
-        ('DOWN_LIMITS',
-         'Follow Lower Limit(Green)',
-         'Add an empty object origin as the rotation axis (if there is an origin, do not add it), and set the origin '
-         'position as the lower limit during operation'),
-        ('LIMITS_MIDDLE',
-         'Middle',
-         'Add an empty object origin as the rotation axis (if there is an origin, do not add it), and set the '
-         'origin position between the upper and lower limits during operation'),
-        ('MIDDLE',
-         'Bound Middle',
-         'Add an empty object origin as the rotation axis (if there is an origin, do not add it), and set the origin '
-         'position as the position between the bounding boxes during operation'),
-        ('NOT', 'No origin operation', ''),
-    )
-
     origin_mode: EnumProperty(name='Origin control mode',
                               default='NOT',
-                              items=origin_mode_items)
+                              items=G_ORIGIN_MODE_ITEMS)
 
 
 class_list = (

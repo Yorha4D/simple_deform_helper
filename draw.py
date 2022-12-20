@@ -5,27 +5,31 @@ import gpu
 from gpu_extras.batch import batch_for_shader
 from mathutils import Vector
 
-from .data import G_INDICES, G_MODIFIERS_PROPERTY, G_NAME, Data
-from .utils import Pref, Utils
+from .data import G_NAME, G_INDICES
 
+class Handler:
+    handler = None
+    handle_text = None
 
-class Handler(Data):
     @classmethod
     def add_handler(cls):
         """向3d视图添加绘制handler
         并将其存储下来
         """
-        if 'handler' not in cls.G_SimpleDeformGizmoHandlerDit:
-            cls.G_SimpleDeformGizmoHandlerDit['handler'] = bpy.types.SpaceView3D.draw_handler_add(
+        if not cls.handler:
+            cls.handler = bpy.types.SpaceView3D.draw_handler_add(
                 Draw3D.draw_bound_box, (), 'WINDOW', 'POST_VIEW')
 
     @classmethod
-    def del_handler_text(cls):
+    def draw_scale_text(cls, ob):
+        if (ob.scale != Vector((1, 1, 1))) and not cls.handle_text:
+            cls.handle_text = bpy.types.SpaceView3D.draw_handler_add(cls.draw_str, (), 'WINDOW', 'POST_PIXEL')
 
-        if 'handler_text' in cls.G_SimpleDeformGizmoHandlerDit:
-            bpy.types.SpaceView3D.draw_handler_remove(
-                cls.G_SimpleDeformGizmoHandlerDit['handler_text'], 'WINDOW')
-            cls.G_SimpleDeformGizmoHandlerDit.pop('handler_text')
+    @classmethod
+    def del_handler_text(cls):
+        if cls.handle_text:
+            bpy.types.SpaceView3D.draw_handler_remove(cls.handle_text, 'WINDOW')
+            cls.handle_text = None
 
     @classmethod
     def del_handler(cls):
@@ -38,13 +42,14 @@ class Handler(Data):
 
         cls.del_handler_text()
 
-        if 'handler' in cls.G_SimpleDeformGizmoHandlerDit:
-            bpy.types.SpaceView3D.draw_handler_remove(
-                cls.G_SimpleDeformGizmoHandlerDit['handler'], 'WINDOW')
-            cls.G_SimpleDeformGizmoHandlerDit.clear()
+        if cls.handler:
+            bpy.types.SpaceView3D.draw_handler_remove(cls.handler, 'WINDOW')
+            cls.handler = None
 
 
-class Draw3D(Pref, Data):
+class Draw3D(Handler):
+    object_bound_max_min_co = Vector(), Vector()  # 物体边界框最大最小坐标
+    object_limits_co = Vector(), Vector()  # 物体限制坐标 (上限,下限)
 
     @classmethod
     def draw_3d_shader(cls, pos, indices, color=None, *, shader_name='3D_UNIFORM_COLOR', draw_type='LINES'):
@@ -105,12 +110,17 @@ class Draw3D(Pref, Data):
     @classmethod
     def draw_box(cls, data, mat):
         pref = cls.pref_()
+        from .utils import Utils
         coords = Utils.matrix_calculation(mat,
                                           cls.data_to_calculation(data))
         cls.draw_3d_shader(coords, G_INDICES, pref.bound_box_color)
 
     @classmethod
     def data_to_calculation(cls, data):
+        """将两个最大最小坐标转换为8个坐梂用于绘制
+        :param data:
+        :return:
+        """
         ((min_x, min_y, min_z), (max_x, max_y, max_z)) = data
         return (
             (max_x, min_y, min_z),
@@ -124,13 +134,16 @@ class Draw3D(Pref, Data):
 
     @classmethod
     def draw_limits_bound_box(cls):
+        """绘制限制边界框
 
+        :return:
+        """
         pref = cls.pref_()
-        handler_dit = cls.G_SimpleDeformGizmoHandlerDit
-        if 'draw_limits_bound_box' in handler_dit:
+        if cls.limits_bound_box:
             # draw limits_bound_box
-            mat, data = handler_dit['draw_limits_bound_box']
+            mat, data = cls.limits_bound_box
             bgl.glEnable(bgl.GL_DEPTH_TEST)
+            from .utils import Utils
             coords = Utils.matrix_calculation(mat, cls.data_to_calculation(data))
             cls.draw_3d_shader(coords,
                                G_INDICES,
@@ -138,9 +151,11 @@ class Draw3D(Pref, Data):
 
     @classmethod
     def draw_limits_line(cls):
-        handler_dit = cls.G_SimpleDeformGizmoHandlerDit
-        if 'draw_line' in handler_dit:
-            line_pos, limits_pos, = handler_dit['draw_line']
+        """绘制上下限的线
+        :return:
+        """
+        if cls.limits_line:
+            line_pos, limits_pos, = cls.limits_line
             bgl.glDisable(bgl.GL_DEPTH_TEST)
             # draw limits line
             cls.draw_3d_shader(limits_pos, ((1, 0),), (1, 1, 0, 0.5))
@@ -152,26 +167,31 @@ class Draw3D(Pref, Data):
 
     @classmethod
     def draw_deform_mesh(cls, ob, context):
+        """绘制形变框
+        添加一个物体并把当前简易形变修改器的参数复制到这个物体
+        再绘制出这个物体的线,就形成了形变边界框
+
+        :param ob:
+        :param context:
+        :return:
+        """
         pref = cls.pref_()
         handler_dit = cls.G_SimpleDeformGizmoHandlerDit
         active = context.object.modifiers.active
         # draw deform mesh
-        if 'draw' in handler_dit:
-            pos, indices, mat, mod_data, limits = handler_dit['draw']
-            if ([getattr(active, i) for i in G_MODIFIERS_PROPERTY] == mod_data) and (
-                    ob.matrix_world == mat) and limits == active.limits[:]:
-                bgl.glEnable(bgl.GL_DEPTH_TEST)
-                cls.draw_3d_shader(
-                    pos, indices, pref.deform_wireframe_color)
-
-    @classmethod
-    def draw_scale_text(cls, ob):
-        if (ob.scale != Vector((1, 1, 1))) and ('handler_text' not in cls.G_SimpleDeformGizmoHandlerDit):
-            cls.G_SimpleDeformGizmoHandlerDit['handler_text'] = bpy.types.SpaceView3D.draw_handler_add(
-                cls.draw_str, (), 'WINDOW', 'POST_PIXEL')
+        # TODO draw deform
+        # if 'draw' in handler_dit:
+        #     pos, indices, mat, mod_data, limits = handler_dit['draw']
+        #     if ([getattr(active, i) for i in G_MODIFIERS_PROPERTY] == mod_data) and (
+        #             ob.matrix_world == mat) and limits == active.limits[:]:
+        #         bgl.glEnable(bgl.GL_DEPTH_TEST)
+        #         cls.draw_3d_shader(
+        #             pos, indices, pref.deform_wireframe_color)
 
     @classmethod
     def is_draw_box(cls, context):
+        """绘制框"""
+        from .utils import Utils
         obj = context.object  # 活动物体
         matrix = obj.matrix_world  # 活动物体矩阵
         modifier = context.object.modifiers.active  # 活动修改器
@@ -179,7 +199,7 @@ class Draw3D(Pref, Data):
         pref = cls.pref_()
         simple_poll = Utils.simple_deform_poll(context)
         bend = modifier and (modifier.deform_method == 'BEND')
-        display_switch_axis = False == pref.display_bend_axis_switch_gizmo
+        display_switch_axis = not pref.display_bend_axis_switch_gizmo
 
         cls.draw_scale_text(obj)
         Utils.update_co_data(obj, modifier)
@@ -199,7 +219,7 @@ class Draw3D(Pref, Data):
 
     @classmethod
     def draw_bound_box(cls):
-        
+
         # return 
         gpu.state.blend_set('ALPHA')
         gpu.state.line_width_set(1)
@@ -208,6 +228,7 @@ class Draw3D(Pref, Data):
         bgl.glDisable(bgl.GL_DEPTH_TEST)
 
         context = bpy.context
+        from .utils import Utils
         if Utils.simple_deform_poll(context):
             cls.is_draw_box(context)
         else:
