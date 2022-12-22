@@ -21,7 +21,7 @@ G_INDICES = (
     (4, 5), (4, 6), (5, 7), (6, 7),
     (0, 4), (1, 5), (2, 6), (3, 7))
 
-G_NAME = 'ViewSimpleDeformGizmo_'  # Temporary use files
+G_NAME = 'ViewSimpleDeformGizmo_Deform'  # 形变框名称
 G_CON_LIMIT_NAME = G_NAME + 'constraints_limit_rotation'  # 约束名称
 G_ADDON_NAME = basename(dirname(realpath(__file__)))  # "simple_deform_helper"
 

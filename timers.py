@@ -32,12 +32,12 @@ def update_timers() -> float:
 
 def register():
     timers.register(update_timers, persistent=True)
-    undo_pre.append(clear_data_pre)
-    undo_post.append(clear_data_post)
+    # undo_pre.append(clear_data_pre)
+    # undo_post.append(clear_data_post)
 
 
 def unregister():
     if timers.is_registered(update_timers):
         timers.unregister(update_timers)
-    undo_pre.remove(clear_data_pre)
-    undo_post.remove(clear_data_post)
+    # undo_pre.remove(clear_data_pre)
+    # undo_post.remove(clear_data_post)

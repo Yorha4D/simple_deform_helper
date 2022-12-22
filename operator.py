@@ -24,7 +24,7 @@ class DeformAxisOperator(Operator, Pref):
         return {'RUNNING_MODAL'}
 
     def modal(self, context, event):
-        from gizmo.gizmo import Utils
+        from gizmo.gizmo_group import Utils
 
         mod = context.object.modifiers.active
         mod.deform_axis = self.Deform_Axis
