@@ -4,10 +4,27 @@ import uuid
 import bpy
 import numpy as np
 from bpy.types import AddonPreferences
+from bpy_extras import view3d_utils
 from mathutils import Vector, Matrix
+from math import sqrt, pi
 
 from .data import G_ADDON_NAME, G_NAME, G_INDICES, G_MODIFIERS_PROPERTY, G_CON_LIMIT_NAME, G_GizmoCustomShapeDict
 from .draw import Draw3D
+
+
+class NotUse:
+
+    @classmethod
+    def properties_is_modifier(cls) -> bool:
+        """
+        反回活动窗口内是否有修改器属性面板被打开,如果打开则反回True else False
+        """
+        for area in bpy.context.screen.areas:
+            if area.type == 'PROPERTIES':
+                for space in area.spaces:
+                    if space.type == 'PROPERTIES' and space.context == 'MODIFIER':
+                        return True
+        return False
 
 
 class Pref:
@@ -23,7 +40,7 @@ class Pref:
         return Pref.pref_()
 
 
-class Utils(Draw3D):
+class CustomShape:
     custom_shape = {}
 
     @classmethod
@@ -32,6 +49,153 @@ class Utils(Draw3D):
         for key, value in G_GizmoCustomShapeDict.items():
             if key not in cls.custom_shape:
                 cls.custom_shape[key] = Gizmo.new_custom_shape('TRIS', value)
+
+
+class Property:
+    mouse_dpi = 10
+    event: "bpy.types.Event"
+    tweak = None
+    context: "bpy.types.Context"
+
+    @classmethod
+    def get_origin_property_group(cls, mod, ob):
+        if mod.origin:
+            return mod.origin.SimpleDeformGizmo_PropertyGroup
+        else:
+            return ob.SimpleDeformGizmo_PropertyGroup
+
+    @property
+    def delta(self):
+        event = self.event
+        tweak = self.tweak
+        context = self.context
+
+        delta = (self.init_mouse_x - event.mouse_x) / self.mouse_dpi
+
+        if 'SNAP' in tweak:
+            delta = round(delta)
+        if 'PRECISE' in tweak:
+            delta /= self.mouse_dpi
+
+        if self.control_mode in ('up_limits', 'down_limits'):
+            x, y = view3d_utils.location_3d_to_region_2d(
+                context.region, context.space_data.region_3d, self.up_point)
+            x2, y2 = view3d_utils.location_3d_to_region_2d(
+                context.region, context.space_data.region_3d, self.down_point)
+
+            mouse_line_distance = math.sqrt(((event.mouse_region_x - x2) ** 2) +
+                                            ((event.mouse_region_y - y2) ** 2))
+            straight_line_distance = sqrt(((x2 - x) ** 2) +
+                                          ((y2 - y) ** 2))
+            delta = mouse_line_distance / \
+                    straight_line_distance + 0
+
+            v_up = Vector((x, y))
+            v_down = Vector((x2, y2))
+            limits_angle = v_up - v_down
+
+            mouse_v = Vector((event.mouse_region_x, event.mouse_region_y))
+
+            mouse_angle = mouse_v - v_down
+            angle_ = mouse_angle.angle(limits_angle)
+            if angle_ > (pi / 2):
+                delta = 0
+        return delta
+
+    @classmethod
+    def get_vector_axis(cls, mod: "bpy.types.Modifer"):
+        """获取矢量轴
+
+        :param mod:
+        :return:
+        """
+        axis = mod.deform_axis
+        x = Vector((1, 0, 0))
+        y = Vector((0, 1, 0))
+        z = Vector((0, 0, 1))
+        if 'BEND' == mod.deform_method:
+            vector_axis = z if axis in ('Y', 'X') else x
+        else:
+            vector = x if (axis == 'X') else y
+            vector_axis = z if (axis == 'Z') else vector
+        return vector_axis
+
+    # PROPERTY
+    @property
+    def simple_modifier(self) -> "bpy.types.Modifier":
+        """反回活动物体的简易形变修改器"""
+        return get_active_simple_modifier()
+
+    @property
+    def simple_modifier_down_limits_value(self) -> "float":
+        return self._limits[0]
+
+    @property
+    def simple_modifier_up_limits_value(self) -> "float":
+        return self._limits[1]
+
+    @property
+    def simple_modifier_angle_value(self) -> "float":
+        return get_active_simple_modifier().angle
+
+    @property
+    def _limits(self) -> "list[float]":
+        return self.simple_modifier.limits
+
+    @property
+    def limits_scope(self) -> "float":
+        return Pref.pref_().modifiers_limits_tolerance
+
+    @property
+    def is_middle_mode(self) -> bool:
+        """反回控制模式是中间的布尔值
+        :return: bool
+        """
+        return self.origin_mode in ("MIDDLE", "LIMITS_MIDDLE")
+
+    @property
+    def limits_difference(self) -> "float":
+        return self.simple_modifier_up_limits_value - self.simple_modifier_down_limits_value
+
+    @property
+    def limits_max_value(self) -> "float":
+        return self.simple_modifier_up_limits_value - self.limits_scope
+
+    @property
+    def limits_min_value(self) -> "float":
+        return self.simple_modifier_down_limits_value - self.limits_scope
+
+    @property
+    def limits_middle(self) -> "Vector":
+        return (self.simple_modifier_up_limits_value + self.simple_modifier_down_limits_value) / 2
+
+    @property
+    def object_property(self) -> "SimpleDeformGizmoObjectPropertyGroup":
+        """反回物体的插件属性
+        :return:
+        """
+        return self.get_origin_property_group(self.simple_modifier, self.object)
+
+    @property
+    def origin_mode(self) -> "str":
+        """反回物体的原点模式,
+        :return:
+        """
+        return self.object_property.origin_mode
+
+    @property
+    def simple_modifier_deform_axis(self) -> "str":
+        """反回形变修改器的轴
+        :return:
+        """
+        return self.simple_modifier.deform_axis
+
+    @property
+    def object(self) -> "bpy.types.Object":
+        return bpy.context.object
+
+
+class Calculation:
 
     @classmethod
     def set_reduce(cls, list_a, list_b, operation_type='-') -> list:
@@ -54,84 +218,6 @@ class Utils(Draw3D):
             return [list_a[i] * list_b[i] for i in range(0, len(list_a))]
 
     @classmethod
-    def value_limit(cls, value, max_value=1, min_value=0) -> float:
-        """
-        :param value: 输入值
-        :type value: float
-        :param max_value: 允许的最大值
-        :type max_value: float
-        :param min_value: 允许的最小值
-        :type min_value: float
-        :return float: 反回小于最大值及大于最小值的浮点数
-        """
-        if value > max_value:
-            return max_value
-        elif value < min_value:
-            return min_value
-        else:
-            return value
-
-    @classmethod
-    def is_positive(cls, number: 'int') -> bool:
-        """return bool value
-        if number is positive return True else return False
-        """
-        return number == abs(number)
-
-    @classmethod
-    def get_depsgraph(cls, obj: 'bpy.context.object'):
-        """
-        :param obj: 要被评估的物体
-        :type obj: bpy.types.Object
-        :return bpy.types.Object: 反回评估后的物体,计算应用修改器和实例化的数据
-        如果未输入物休将会评估活动物体
-        """
-        context = bpy.context
-        if obj is None:
-            obj = context.object
-        depsgraph = context.evaluated_depsgraph_get()
-        return obj.evaluated_get(depsgraph)
-
-    @classmethod
-    def link_active_collection(cls,
-                               obj: 'bpy.context.object') -> \
-            'bpy.context.view_layer.active_layer_collection.collection.objects':
-        context = bpy.context
-        if obj.name not in context.view_layer.active_layer_collection.collection.objects:
-            context.view_layer.active_layer_collection.collection.objects.link(
-                obj)
-        return context.view_layer.active_layer_collection.collection.objects
-
-    @classmethod
-    def properties_is_modifier(cls) -> bool:
-        """
-        反回活动窗口内是否有修改器属性面板被打开,如果打开则反回True else False
-        """
-        for area in bpy.context.screen.areas:
-            if area.type == 'PROPERTIES':
-                for space in area.spaces:
-                    if space.type == 'PROPERTIES' and space.context == 'MODIFIER':
-                        return True
-        return False
-
-    @classmethod
-    def simple_deform_poll(cls, context: 'bpy.context') -> bool:
-        """
-        :param context:输入一个上下文
-        :type context:bpy.context
-        :return bool:反回布尔值,如果活动物体为网格或晶格并且活动修改器为简易形变反回 True else False
-        """
-        obj = context.object
-        mesh = (obj.type in ('MESH', 'LATTICE')) if obj else False
-        modifiers_type = (obj.modifiers.active.type ==
-                          'SIMPLE_DEFORM') if (obj and (obj.modifiers.active is not None)) else False
-        obj_ok = context and obj and modifiers_type and mesh
-        module_ok = (context.mode == 'OBJECT')
-        view = context.space_data
-        show_gizmo = view.show_gizmo
-        return obj_ok and module_ok and show_gizmo
-
-    @classmethod
     def bound_box_to_list(cls, obj: 'bpy.context.object') -> tuple:
         """
         :param obj:输入一个物体,反回物体的边界框列表
@@ -140,6 +226,91 @@ class Utils(Draw3D):
         """
         return tuple(i[:] for i in obj.bound_box)
 
+    @classmethod
+    def point_to_angle(cls, a, b, c, axis):
+        """仨个点转换为角度
+
+        :param a:
+        :param b:
+        :param c:
+        :param axis:
+        :return:
+        """
+        if a == b:
+            if c == 0:
+                a[0] += 0.1
+                b[0] -= 0.1
+            elif c == 1:
+                a[1] -= 0.1
+                b[1] += 0.1
+            else:
+                a[2] -= 0.1
+                b[2] += 0.1
+        vector_value = a - b
+        angle = (180 * vector_value.angle(axis) / math.pi)
+        return angle
+
+    @classmethod
+    def co_to_direction(cls, mat, data):
+        """坐标到方向
+
+        :param mat:
+        :param data:
+        :return:
+        """
+        (min_x, min_y, min_z), (max_x, max_y,
+                                max_z) = data
+        a = mat @ Vector((max_x, max_y, max_z))
+        b = mat @ Vector((max_x, min_y, min_z))
+        c = mat @ Vector((min_x, max_y, min_z))
+        d = mat @ Vector((min_x, min_y, max_z))
+
+        def pos_get(a, b):
+            return cls.set_reduce(cls.set_reduce(a, b, '+'), [2, 2, 2], '/')
+
+        top = Vector(pos_get(a, d))
+        bottom = Vector(pos_get(c, b))
+        left = Vector(pos_get(c, d))
+        right = Vector(pos_get(a, b))
+        front = Vector(pos_get(d, b))
+        back = Vector(pos_get(c, a))
+        return top, bottom, left, right, front, back
+
+    @classmethod
+    def each_face_pos(cls, mat: 'Matrix' = None):
+        """获取每个面的点,用作选择轴的点
+
+        :param mat:
+        :return:
+        """
+        if mat is None:
+            mat = Matrix()
+        return cls.co_to_direction(mat, cls.object_max_min_co)
+
+    @classmethod
+    def get_up_down_return_list(cls, mod, axis, up_, down_, data):
+        top, bottom, left, right, front, back = data
+        if 'BEND' == mod.deform_method:
+            if axis in ('X', 'Y'):
+                top = up_
+                bottom = down_
+            elif axis == 'Z':
+                right = up_
+                left = down_
+        else:
+            if axis == 'X':
+                right = up_
+                left = down_
+            elif axis == 'Y':
+                back = up_
+                front = down_
+            elif axis == 'Z':
+                top = up_
+                bottom = down_
+        return top, bottom, left, right, front, back
+
+
+class UpdateAndGetData:
     @classmethod
     def get_origin_bounds(cls, obj: 'bpy.context.object') -> list:
         modifiers_list = {}
@@ -177,74 +348,6 @@ class Utils(Draw3D):
             obj.data.points.foreach_get('co', list_vertices)
             list_vertices = list_vertices.reshape(ver_len, 3)
         return tuple(list_vertices.min(axis=0)), tuple(list_vertices.max(axis=0))
-
-    @classmethod
-    def matrix_calculation(cls, mat: 'Matrix', calculation_list: 'iter') -> list:
-        return [mat @ Vector(i) for i in calculation_list]
-
-    @classmethod
-    def get_origin_property_group(cls, mod, ob):
-        if mod.origin:
-            return mod.origin.SimpleDeformGizmo_PropertyGroup
-        else:
-            return ob.SimpleDeformGizmo_PropertyGroup
-
-    @classmethod
-    def set_empty_obj_matrix(cls, origin_mode, empty_object, up_, down_, up, down):
-        tow = [2 * 3]
-        if origin_mode == 'UP_LIMITS':
-            empty_object.matrix_world.translation = Vector(up_)
-        elif origin_mode == 'DOWN_LIMITS':
-            empty_object.matrix_world.translation = Vector(
-                down_)
-        elif origin_mode == 'LIMITS_MIDDLE':
-            empty_object.matrix_world.translation = cls.set_reduce(
-                cls.set_reduce(up_, down_, '+'), tow, '/')
-        elif origin_mode == 'MIDDLE':
-            empty_object.matrix_world.translation = cls.set_reduce(
-                cls.set_reduce(up, down, '+'), tow, '/')
-
-    @classmethod
-    def get_vector_axis(cls, mod: "bpy.types.Modifer"):
-        """获取矢量轴
-
-        :param mod:
-        :return:
-        """
-        axis = mod.deform_axis
-        x = Vector((1, 0, 0))
-        y = Vector((0, 1, 0))
-        z = Vector((0, 0, 1))
-        if 'BEND' == mod.deform_method:
-            vector_axis = z if axis in ('Y', 'X') else x
-        else:
-            vector = x if (axis == 'X') else y
-            vector_axis = z if (axis == 'Z') else vector
-        return vector_axis
-
-    @classmethod
-    def point_to_angle(cls, a, b, c, axis):
-        """仨个点转换为角度
-
-        :param a:
-        :param b:
-        :param c:
-        :param axis:
-        :return:
-        """
-        if a == b:
-            if c == 0:
-                a[0] += 0.1
-                b[0] -= 0.1
-            elif c == 1:
-                a[1] -= 0.1
-                b[1] += 0.1
-            else:
-                a[2] -= 0.1
-                b[2] += 0.1
-        vector_value = a - b
-        angle = (180 * vector_value.angle(axis) / math.pi)
-        return angle
 
     @classmethod
     def get_up_down(cls, mod, axis, top, bottom, left, right, front, back):
@@ -371,7 +474,7 @@ class Utils(Draw3D):
                 simple_deform.limits[0] = mo.limits[0]
                 simple_deform.angle = mo.angle
                 simple_deform.show_viewport = mo.show_viewport
-                obj = Utils.get_depsgraph(new_object)
+                obj = GizmoUtils.get_depsgraph(new_object)
 
         new_object.hide_set(True)
         new_object.hide_viewport = False
@@ -483,111 +586,93 @@ class Utils(Draw3D):
         origin_object.scale = 1, 1, 1
         return origin_object, G_CON_LIMIT_NAME
 
-    @classmethod
-    def co_to_direction(cls, mat, data):
-        """坐标到方向
 
-        :param mat:
-        :param data:
-        :return:
+class GizmoUtils(Draw3D, Property, CustomShape, Calculation, UpdateAndGetData):
+
+    @classmethod
+    def value_limit(cls, value, max_value=1, min_value=0) -> float:
         """
-        (min_x, min_y, min_z), (max_x, max_y,
-                                max_z) = data
-        a = mat @ Vector((max_x, max_y, max_z))
-        b = mat @ Vector((max_x, min_y, min_z))
-        c = mat @ Vector((min_x, max_y, min_z))
-        d = mat @ Vector((min_x, min_y, max_z))
-
-        def pos_get(a, b):
-            return cls.set_reduce(cls.set_reduce(a, b, '+'), [2, 2, 2], '/')
-
-        top = Vector(pos_get(a, d))
-        bottom = Vector(pos_get(c, b))
-        left = Vector(pos_get(c, d))
-        right = Vector(pos_get(a, b))
-        front = Vector(pos_get(d, b))
-        back = Vector(pos_get(c, a))
-        return top, bottom, left, right, front, back
-
-    @classmethod
-    def each_face_pos(cls, mat: 'Matrix' = None):
-        """获取每个面的点,用作选择轴的点
-
-        :param mat:
-        :return:
+        :param value: 输入值
+        :type value: float
+        :param max_value: 允许的最大值
+        :type max_value: float
+        :param min_value: 允许的最小值
+        :type min_value: float
+        :return float: 反回小于最大值及大于最小值的浮点数
         """
-        if mat is None:
-            mat = Matrix()
-        return cls.co_to_direction(mat, cls.object_max_min_co)
-
-    @classmethod
-    def get_up_down_return_list(cls, mod, axis, up_, down_, data):
-        top, bottom, left, right, front, back = data
-        if 'BEND' == mod.deform_method:
-            if axis in ('X', 'Y'):
-                top = up_
-                bottom = down_
-            elif axis == 'Z':
-                right = up_
-                left = down_
+        if value > max_value:
+            return max_value
+        elif value < min_value:
+            return min_value
         else:
-            if axis == 'X':
-                right = up_
-                left = down_
-            elif axis == 'Y':
-                back = up_
-                front = down_
-            elif axis == 'Z':
-                top = up_
-                bottom = down_
-        return top, bottom, left, right, front, back
+            return value
 
-    # PROPERTY
-    @property
-    def simple_modifier(self) -> "bpy.types.Modifier":
-        """反回活动物体的简易形变修改器"""
-        return get_active_simple_modifier()
-
-    @property
-    def simple_modifier_down_limits_value(self) -> "float":
-        return self._limits[0]
-
-    @property
-    def simple_modifier_up_limits_value(self) -> "float":
-        return self._limits[1]
-
-    @property
-    def _limits(self) -> "list[float]":
-        return self.simple_modifier.limits
-
-    @property
-    def limits_scope(self) -> "float":
-        return Pref.pref_().modifiers_limits_tolerance
-
-    @property
-    def object_property(self) -> "SimpleDeformGizmoObjectPropertyGroup":
-        """反回物体的插件属性
-        :return:
+    @classmethod
+    def is_positive(cls, number: 'int') -> bool:
+        """return bool value
+        if number is positive return True else return False
         """
-        return self.get_origin_property_group(self.simple_modifier, self.object)
+        return number == abs(number)
 
-    @property
-    def origin_mode(self) -> "str":
-        """反回物体的原点模式,
-        :return:
+    @classmethod
+    def get_depsgraph(cls, obj: 'bpy.context.object'):
         """
-        return self.object_property.origin_mode
-
-    @property
-    def simple_modifier_deform_axis(self) -> "str":
-        """反回形变修改器的轴
-        :return:
+        :param obj: 要被评估的物体
+        :type obj: bpy.types.Object
+        :return bpy.types.Object: 反回评估后的物体,计算应用修改器和实例化的数据
+        如果未输入物休将会评估活动物体
         """
-        return self.simple_modifier.deform_axis
+        context = bpy.context
+        if obj is None:
+            obj = context.object
+        depsgraph = context.evaluated_depsgraph_get()
+        return obj.evaluated_get(depsgraph)
 
-    @property
-    def object(self) -> "bpy.types.Object":
-        return bpy.context.object
+    @classmethod
+    def link_active_collection(cls,
+                               obj: 'bpy.context.object') -> \
+            'bpy.context.view_layer.active_layer_collection.collection.objects':
+        context = bpy.context
+        if obj.name not in context.view_layer.active_layer_collection.collection.objects:
+            context.view_layer.active_layer_collection.collection.objects.link(
+                obj)
+        return context.view_layer.active_layer_collection.collection.objects
+
+    @classmethod
+    def simple_deform_poll(cls, context: 'bpy.context') -> bool:
+        """
+        :param context:输入一个上下文
+        :type context:bpy.context
+        :return bool:反回布尔值,如果活动物体为网格或晶格并且活动修改器为简易形变反回 True else False
+        """
+        obj = context.object
+        mesh = (obj.type in ('MESH', 'LATTICE')) if obj else False
+        modifiers_type = (obj.modifiers.active.type ==
+                          'SIMPLE_DEFORM') if (obj and (obj.modifiers.active is not None)) else False
+        obj_ok = context and obj and modifiers_type and mesh
+        module_ok = (context.mode == 'OBJECT')
+        view = context.space_data
+        show_gizmo = view.show_gizmo
+        return obj_ok and module_ok and show_gizmo
+
+    @classmethod
+    def matrix_calculation(cls, mat: 'Matrix', calculation_list: 'iter') -> list:
+        return [mat @ Vector(i) for i in calculation_list]
+
+    @classmethod
+    def set_empty_obj_matrix(cls, origin_mode, empty_object, up_, down_, up, down):
+        tow = [2 * 3]
+        if origin_mode == 'UP_LIMITS':
+            empty_object.matrix_world.translation = Vector(up_)
+        elif origin_mode == 'DOWN_LIMITS':
+            empty_object.matrix_world.translation = Vector(
+                down_)
+        elif origin_mode == 'LIMITS_MIDDLE':
+            empty_object.matrix_world.translation = cls.set_reduce(
+                cls.set_reduce(up_, down_, '+'), tow, '/')
+        elif origin_mode == 'MIDDLE':
+            empty_object.matrix_world.translation = cls.set_reduce(
+                cls.set_reduce(up, down, '+'), tow, '/')
 
 
 def get_active_simple_modifier() -> "bpy.types.Modifier":

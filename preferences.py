@@ -10,7 +10,7 @@ from bpy.types import (
 )
 
 from .data import G_ORIGIN_MODE_ITEMS, G_ADDON_NAME
-from .utils import Pref, Utils, get_active_simple_modifier
+from .utils import Pref, GizmoUtils, get_active_simple_modifier
 
 
 class SimpleDeformGizmoAddonPreferences(AddonPreferences, Pref):
@@ -63,7 +63,7 @@ class SimpleDeformGizmoAddonPreferences(AddonPreferences, Pref):
         :return: None
         """
         layout = self.layout
-        if Utils.simple_deform_poll(context):
+        if GizmoUtils.simple_deform_poll(context):
             layout.separator(factor=5)
             active_mod = context.object.modifiers.active
             prop = context.object.SimpleDeformGizmo_PropertyGroup
@@ -125,16 +125,16 @@ def set_limits(value, index) -> None:
 class SimpleDeformGizmoObjectPropertyGroup(PropertyGroup):
     up_limits: FloatProperty(name='up',
                              description='UP Limits(Red)',
-                             get=lambda _: get_limits(0),
-                             set=lambda _, value: set_limits(value, 0),
+                             get=lambda _: get_limits(1),
+                             set=lambda _, value: set_limits(value, 1),
                              default=1,
                              max=1,
                              min=0)
 
     down_limits: FloatProperty(name='down',
                                description='Lower limit(Green)',
-                               get=lambda _: get_limits(1),
-                               set=lambda _, value: set_limits(value, 1),
+                               get=lambda _: get_limits(0),
+                               set=lambda _, value: set_limits(value, 0),
                                default=0,
                                max=1,
                                min=0)

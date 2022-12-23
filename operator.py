@@ -24,12 +24,12 @@ class DeformAxisOperator(Operator, Pref):
         return {'RUNNING_MODAL'}
 
     def modal(self, context, event):
-        from gizmo.gizmo_group import Utils
+        from gizmo.gizmo_group import GizmoUtils
 
         mod = context.object.modifiers.active
         mod.deform_axis = self.Deform_Axis
-        empty, con_limit_name = Utils.new_empty(context.object, mod)
-        is_positive = Utils.is_positive(mod.angle)
+        empty, con_limit_name = GizmoUtils.new_empty(context.object, mod)
+        is_positive = GizmoUtils.is_positive(mod.angle)
 
         for limit, value in (('max_x', self.X_Value),
                              ('min_x', self.X_Value),
@@ -46,7 +46,7 @@ class DeformAxisOperator(Operator, Pref):
         if not event.ctrl:
             self.pref.display_bend_axis_switch_gizmo = False
 
-        Utils.update_bound_box(context.object)
+        GizmoUtils.update_bound_box(context.object)
         return {'FINISHED'}
 
 

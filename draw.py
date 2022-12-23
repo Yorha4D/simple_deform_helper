@@ -115,8 +115,8 @@ class Draw3D(Handler):
     @classmethod
     def draw_box(cls, mat):
         pref = cls.pref_()
-        from .utils import Utils
-        coords = Utils.matrix_calculation(mat, cls.co_to_bound(cls.object_max_min_co))
+        from .utils import GizmoUtils
+        coords = GizmoUtils.matrix_calculation(mat, cls.co_to_bound(cls.object_max_min_co))
         cls.draw_3d_shader(coords, G_INDICES, pref.bound_box_color)
 
     @classmethod
@@ -188,18 +188,18 @@ class Draw3D(Handler):
         """绘制框"""
         return
 
-        from .utils import Utils
+        from .utils import GizmoUtils
         obj = context.object  # 活动物体
         matrix = obj.matrix_world  # 活动物体矩阵
         modifier = context.object.modifiers.active  # 活动修改器
 
         pref = cls.pref_()
-        simple_poll = Utils.simple_deform_poll(context)
+        simple_poll = GizmoUtils.simple_deform_poll(context)
         is_bend = modifier and (modifier.deform_method == 'BEND')
         display_switch_axis = not pref.display_bend_axis_switch_gizmo
 
         cls.draw_scale_text(obj)
-        Utils.update_co_data(obj, modifier)
+        GizmoUtils.update_co_data(obj, modifier)
 
         if simple_poll and ((not is_bend) or display_switch_axis):
             # draw bound box
@@ -210,7 +210,7 @@ class Draw3D(Handler):
         elif simple_poll and (is_bend and not display_switch_axis):
             bgl.glDisable(bgl.GL_DEPTH_TEST)
             cls.draw_box(co_data, matrix)
-            Utils.new_empty(obj, modifier)
+            GizmoUtils.new_empty(obj, modifier)
 
     @classmethod
     def draw_bound_box(cls):
@@ -223,8 +223,8 @@ class Draw3D(Handler):
         bgl.glDisable(bgl.GL_DEPTH_TEST)
 
         context = bpy.context
-        from .utils import Utils
-        if Utils.simple_deform_poll(context):
+        from .utils import GizmoUtils
+        if GizmoUtils.simple_deform_poll(context):
             cls.is_draw_box(context)
         else:
             cls.del_handler()

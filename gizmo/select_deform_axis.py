@@ -5,10 +5,10 @@ from mathutils import Euler, Vector
 
 from .gizmo_group import CustomGizmo
 from ..operator import DeformAxisOperator
-from ..utils import Utils, Pref
+from ..utils import GizmoUtils, Pref
 
 
-class SimpleDeformGizmoGroupDisplayBendAxiSwitchGizmo(GizmoGroup, Utils, Pref):
+class SimpleDeformGizmoGroupDisplayBendAxiSwitchGizmo(GizmoGroup, GizmoUtils, Pref):
     """绘制切换变型轴的
     变换方向
     仅显示在简易形变修改器为弯曲时
