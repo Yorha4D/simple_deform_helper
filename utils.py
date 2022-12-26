@@ -26,6 +26,26 @@ class NotUse:
                         return True
         return False
 
+    def exit(self, context, cancel):
+        """TODO
+        :param context:
+        :param cancel:
+        :return:
+        """
+        context.area.header_text_set(None)
+        #
+        # if cancel:
+        #     if 'angle' == self.control_mode:
+        #         self.target_set_value('angle', self.int_value_angle)
+        #     elif 'deform_axis' == self.control_mode:
+        #         self.target_set_value('deform_axis', self.value_deform_axis)
+        #     elif 'up_limits' == self.control_mode:
+        #         self.target_set_value('up_limits', self.int_value_up_limits)
+        #
+        #     elif 'down_limits' == self.control_mode:
+        #         self.target_set_value(
+        #             'down_limits', self.int_value_down_limits)
+
 
 class Pref:
     @staticmethod
@@ -40,7 +60,7 @@ class Pref:
         return Pref.pref_()
 
 
-class CustomShape:
+class CustomShape(Pref, Draw3D):
     custom_shape = {}
 
     @classmethod
@@ -51,11 +71,26 @@ class CustomShape:
                 cls.custom_shape[key] = Gizmo.new_custom_shape('TRIS', value)
 
 
-class Property:
+class Property(CustomShape):
     mouse_dpi = 10
+    init_mouse_x: float
+    init_mouse_y: float
     event: "bpy.types.Event"
     tweak = None
     context: "bpy.types.Context"
+    control_mode: "str"  # "up_limits"  # up_limits , down_limits,angle
+
+    def init_event(self, event: "bpy.types.Event"):
+        self.init_mouse_y = event.mouse_y
+        self.init_mouse_x = event.mouse_x
+
+    def init_modal_data(self, context, event, tweak):
+        self.tweak = tweak
+        self.init_invoke(context, event)
+
+    def init_invoke(self, context, event):
+        self.event = event
+        self.context = context
 
     @classmethod
     def get_origin_property_group(cls, mod, ob):
@@ -77,7 +112,7 @@ class Property:
         if 'PRECISE' in tweak:
             delta /= self.mouse_dpi
 
-        if self.control_mode in ('up_limits', 'down_limits'):
+        if getattr(self, "control_mode", None) in ('up_limits', 'down_limits'):
             x, y = view3d_utils.location_3d_to_region_2d(
                 context.region, context.space_data.region_3d, self.up_point)
             x2, y2 = view3d_utils.location_3d_to_region_2d(
@@ -166,11 +201,11 @@ class Property:
         return self.simple_modifier_down_limits_value - self.limits_scope
 
     @property
-    def limits_middle(self) -> "Vector":
+    def limits_middle(self) -> "float":
         return (self.simple_modifier_up_limits_value + self.simple_modifier_down_limits_value) / 2
 
     @property
-    def object_property(self) -> "SimpleDeformGizmoObjectPropertyGroup":
+    def object_property(self) -> "preferences.SimpleDeformGizmoObjectPropertyGroup":
         """反回物体的插件属性
         :return:
         """
@@ -194,8 +229,24 @@ class Property:
     def object(self) -> "bpy.types.Object":
         return bpy.context.object
 
+    @property
+    def up_point(self) -> "Vector":
+        ...
 
-class Calculation:
+    @property
+    def down_point(self) -> "Vector":
+        ...
+
+    @property
+    def down_limits(self) -> "Vector":
+        ...
+
+    @property
+    def up_limits(self) -> "Vector":
+        ...
+
+
+class Calculation(Property):
 
     @classmethod
     def set_reduce(cls, list_a, list_b, operation_type='-') -> list:
@@ -310,7 +361,7 @@ class Calculation:
         return top, bottom, left, right, front, back
 
 
-class UpdateAndGetData:
+class UpdateAndGetData(Calculation):
     @classmethod
     def get_origin_bounds(cls, obj: 'bpy.context.object') -> list:
         modifiers_list = {}
@@ -422,6 +473,7 @@ class UpdateAndGetData:
         :return:
         """
         cls.object_max_min_co = cls.get_mesh_max_min_co(obj)
+        print(cls.object_max_min_co)
 
     @classmethod
     def update_deform_wireframe(cls, obj):
@@ -510,33 +562,6 @@ class UpdateAndGetData:
         cls.deform_bound_draw_data = ver, indices, limits, modifier_property
 
     @classmethod
-    def update_co_data(cls, ob, mod):
-        """TODO update co data
-
-        :param ob:
-        :param mod:
-        :return:
-        """
-        if cls.object_max_min_co and ob.type in ('MESH', 'LATTICE'):
-            ...
-            # modifiers_co = cls.object_max_min_co
-            # for index, mod_name in enumerate(modifiers_co):
-            #     co_items = list(modifiers_co.items())
-            #     if (mod.name == mod_name) and (index or (index != 1)):
-            #         cls.object_max_min_co = co_items[index - 1][1]
-
-    # @classmethod
-    # def get_mesh_bound_co(cls):
-    #     """获取网格的最大最小坐标
-    #
-    #     :return:
-    #     """
-    #     if 'co' not in cls.mesh_co:
-    #         cls.mesh_co['co'] = cls.get_mesh_max_min_co(
-    #             bpy.context.object)
-    #     return cls.mesh_co['co']
-
-    @classmethod
     def new_empty(cls, obj, mod):
         """新建空物体作为轴来使用
         :param obj:
@@ -586,8 +611,50 @@ class UpdateAndGetData:
         origin_object.scale = 1, 1, 1
         return origin_object, G_CON_LIMIT_NAME
 
+    def update_limits_point_and_bound(self):
+        """更新上下限边界框
+        """
+        matrix = self.object.matrix_world
+        modifier = self.simple_modifier
+        axis = self.simple_modifier_deform_axis
 
-class GizmoUtils(Draw3D, Property, CustomShape, Calculation, UpdateAndGetData):
+        # calculation  limits position
+        top, bottom, left, right, front, back = self.each_face_pos(matrix)
+        (up, down), (up_limits, down_limits) = self.from_simple_modifiers_get_limits_pos(modifier, (
+            top, bottom, left, right, front, back))
+
+        data = top, bottom, left, right, front, back
+
+        if modifier.origin:
+            vector_axis = self.get_vector_axis(modifier)
+            origin_mat = modifier.origin.matrix_world.to_3x3()
+            axis_ = origin_mat @ vector_axis
+            point_lit = [[top, bottom], [left, right], [front, back]]
+            for f in range(point_lit.__len__()):
+                i = point_lit[f][0]
+                j = point_lit[f][1]
+                angle = self.point_to_angle(i, j, f, axis_)
+                if abs(angle - 180) < 0.00001:
+                    point_lit[f][1], point_lit[f][0] = up_limits, down_limits
+                elif abs(angle) < 0.00001:
+                    point_lit[f][0], point_lit[f][1] = up_limits, down_limits
+            [[top, bottom], [left, right], [front, back]] = point_lit
+        else:
+            top, bottom, left, right, front, back = self.get_up_down_return_list(
+                modifier, axis, up_limits, down_limits, data)
+        data = top, bottom, left, right, front, back
+        (top, bottom, left, right, front, back) = self.matrix_calculation(matrix.inverted(), data)
+
+        self.simple_modifier_limits_bound = (matrix, (right[0], back[1], top[2]), (left[0], front[1], bottom[2],))
+        self.simple_modifier_point_co = (up, down)
+        self.simple_modifier_limits_co = (up_limits, down_limits)
+
+        # self.up_point = up
+        # self.down_point = down
+        # self.up_limits = up_limits
+        # self.down_limits = down_limits
+
+class GizmoUtils(UpdateAndGetData):
 
     @classmethod
     def value_limit(cls, value, max_value=1, min_value=0) -> float:

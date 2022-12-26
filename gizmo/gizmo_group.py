@@ -47,6 +47,7 @@ class SimpleDeformGizmoGroup(GizmoGroup, GizmoUtils, Pref):
     bl_region_type = 'WINDOW'
     bl_options = {'3D', 'PERSISTENT'}
     gizmo_angle: "bpy.types.Gizmo"
+    tmp_object: "bpy.types.Object" = None
 
     def set_simple_control_gizmo(self):
         """生成gizmo的上限下限及角度的gizmo
@@ -66,7 +67,6 @@ class SimpleDeformGizmoGroup(GizmoGroup, GizmoUtils, Pref):
                         'color': (1.0, 0, 0),
                         'alpha': 0.5,
                         'color_highlight': (1.0, 1.0, 1.0),
-                        'target_set_prop': ('offset', self.simple_modifier, 'angle'),
                         **general_data
                         }),
                       ('down_limits',
@@ -76,32 +76,31 @@ class SimpleDeformGizmoGroup(GizmoGroup, GizmoUtils, Pref):
                         'color': (0, 1.0, 0),
                         'alpha': 0.5,
                         'color_highlight': (1.0, 1.0, 1.0),
-                        'target_set_prop': ('offset', self.object_property, 'down_limits'),
                         **general_data
                         }),
-
                       )
 
         from .limits_point_gizmo import ViewSimpleDeformGizmo
-        # ViewSimpleDeformGizmo.bl_idname
+
         for gizmo_id, gizmo_info in gizmo_data:
             gizmo_name = "gizmo_" + gizmo_id
 
-            setattr(self, gizmo_name, self.gizmos.new("GIZMO_GT_arrow_3d"))
+            setattr(self, gizmo_name, self.gizmos.new(ViewSimpleDeformGizmo.bl_idname))
             gizmo = getattr(self, gizmo_name)
             for key in gizmo_info:
+                value = gizmo_info[key]
                 if key == 'target_set_operator':  # 操作符
-                    gizmo.target_set_operator(gizmo_info[key])
+                    gizmo.target_set_operator(value)
                 elif key == 'target_set_prop':  # 设置属性
-                    gizmo.target_set_prop(*gizmo_info[key])
-                elif getattr(gizmo, key, False):
-                    setattr(gizmo, key, gizmo_info[key])
+                    gizmo.target_set_prop(*value)
+                else:
+                    setattr(gizmo, key, value)
+        self.update_limits_property()
 
     def set_angle_gizmo(self):
         from .angle_gizmo import AngleGizmo
-        gizmo = self.gizmos.new(AngleGizmo.bl_idname)
-        gizmo.target_set_prop('value', self.simple_modifier, 'angle')
-        self.gizmo_angle = gizmo
+        self.gizmo_angle = self.gizmos.new(AngleGizmo.bl_idname)
+        self.update_angle_property()
 
     def set_axis_switch_gizmo(self):
         """生成切换轴的2D 按钮
@@ -128,6 +127,48 @@ class SimpleDeformGizmoGroup(GizmoGroup, GizmoUtils, Pref):
             gizmo.scale_basis = 0.1
             setattr(self, f'gizmo_deform_axis_{axis.lower()}', gizmo)
 
+    @classmethod
+    def poll(cls, context):
+        pol = cls.simple_deform_poll(context)
+        pref = cls.pref_()
+        deform_method = (
+                pol and (context.object.modifiers.active.deform_method != 'BEND'))
+        display_gizmo = pref.display_bend_axis_switch_gizmo
+        switch = (not display_gizmo)
+        return pol and (deform_method or switch)
+
+    def setup(self, context):
+        self.set_simple_control_gizmo()
+        # self.set_axis_switch_gizmo()
+        self.set_angle_gizmo()
+        self.add_handler()
+
+        print("setup:\t", self)
+
+    def refresh(self, context):
+        self.add_handler()
+        self.update_change_object()
+
+    def draw_prepare(self, context):
+        """TODO 更新2d切换按钮位置
+
+        :param context:
+        :return:
+        """
+        self.add_handler()
+
+    def update_property(self):
+        self.update_angle_property()
+        self.update_limits_property()
+
+    def update_angle_property(self):
+        self.gizmo_angle.target_set_prop('angle', self.simple_modifier, 'angle')
+
+    def update_limits_property(self):
+        for gizmo in (self.gizmo_up_limits, self.gizmo_down_limits):
+            gizmo.target_set_prop("down_limits_value", self.object_property, "down_limits")
+            gizmo.target_set_prop("up_limits_value", self.object_property, "up_limits")
+
     def update_2d_button_translation(self):
         obj = bpy.context.object
         mat = obj.matrix_world
@@ -142,41 +183,13 @@ class SimpleDeformGizmoGroup(GizmoGroup, GizmoUtils, Pref):
             self.gizmo_deform_axis_y.matrix_basis.translation = _mat(0.3)
             self.gizmo_deform_axis_z.matrix_basis.translation = _mat(0.6)
 
-    @classmethod
-    def poll(cls, context):
-        pol = cls.simple_deform_poll(context)
-        pref = cls.pref_()
-        deform_method = (
-                pol and (context.object.modifiers.active.deform_method != 'BEND'))
-        display_gizmo = pref.display_bend_axis_switch_gizmo
-        switch = (not display_gizmo)
-        return pol and (deform_method or switch)
+    def update_change_object(self):
+        """更改物体时更新
 
-    def setup(self, context):
-        self.set_simple_control_gizmo()
-        self.set_axis_switch_gizmo()
-        self.set_angle_gizmo()
-        self.add_handler()
-
-    def refresh(self, context):
-        self.add_handler()
-        ob = context.object
-
-        matrix = ob.matrix_world.normalized()
-        for index, key in enumerate(('up_limits',
-                                     'down_limits',
-                                     )):
-            gizmo = getattr(self, "gizmo_" + key)
-            mat = matrix.copy()
-            mat.translation.x += index
-            gizmo.matrix_basis = mat
-        self.gizmo_angle.matrix_basis.translation = Vector()
-
-    def draw_prepare(self, context):
-        """TODO 更新2d切换按钮位置
-
-        :param context:
         :return:
         """
-        # self.update_2d_button_translation()
-        self.add_handler()
+        if self.object != self.tmp_object:
+            self.tmp_object = self.object
+            self.update_bound_box(self.tmp_object)
+            self.update_property()
+            print("更改物体", self.tmp_object)

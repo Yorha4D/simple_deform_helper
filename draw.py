@@ -52,7 +52,7 @@ class Draw3D(Handler):
     tow_vector = (Vector(), Vector())
     simple_modifier_point_co = tow_vector  # 存上限和下限原点,未移动的点
     simple_modifier_limits_co = tow_vector  # 存上下限移动的点,根据系数来设置位置
-    simple_modifier_limits_bound = None #
+    simple_modifier_limits_bound = None
     object_max_min_co = tow_vector  # 存储网格的最大最小坐标,使用物体的名称作为key:value是最大最小坐标   "co":None co储存活动项的最大最小坐标
     deform_bound_draw_data = None  # 绘制形变变界框的数据,就是白色的边框,数据从复制出来的一个物体里面拿到 indices: "(list[Vector],(int,int))"
 
