@@ -28,7 +28,7 @@ class DeformAxisOperator(Operator, Pref):
 
         mod = context.object.modifiers.active
         mod.deform_axis = self.Deform_Axis
-        empty, con_limit_name = GizmoUtils.new_empty(context.object, mod)
+        empty, con_limit_name = GizmoUtils.empty_new(context.object, mod)
         is_positive = GizmoUtils.is_positive(mod.angle)
 
         for limit, value in (('max_x', self.X_Value),

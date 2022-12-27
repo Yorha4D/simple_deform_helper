@@ -34,6 +34,8 @@ class CustomGizmo(Gizmo, GizmoUtils):
 
     def modal(self, context, event, tweak):
         self.add_handler()
+        self.update_bound_box(self.object)
+        self.update_empty()
         return {'RUNNING_MODAL'}
 
 
@@ -47,7 +49,6 @@ class SimpleDeformGizmoGroup(GizmoGroup, GizmoUtils, Pref):
     bl_region_type = 'WINDOW'
     bl_options = {'3D', 'PERSISTENT'}
     gizmo_angle: "bpy.types.Gizmo"
-    tmp_object: "bpy.types.Object" = None
 
     def set_simple_control_gizmo(self):
         """生成gizmo的上限下限及角度的gizmo
@@ -146,8 +147,14 @@ class SimpleDeformGizmoGroup(GizmoGroup, GizmoUtils, Pref):
         print("setup:\t", self)
 
     def refresh(self, context):
+        self.update_property()
         self.add_handler()
-        self.update_change_object()
+
+
+        if self.need_update:
+            print("需要更新")
+            self.update_bound_box(self.object)
+            self.update_limits_and_bound()
 
     def draw_prepare(self, context):
         """TODO 更新2d切换按钮位置
@@ -182,14 +189,3 @@ class SimpleDeformGizmoGroup(GizmoGroup, GizmoUtils, Pref):
             self.gizmo_deform_axis_x.matrix_basis.translation = _mat(0)
             self.gizmo_deform_axis_y.matrix_basis.translation = _mat(0.3)
             self.gizmo_deform_axis_z.matrix_basis.translation = _mat(0.6)
-
-    def update_change_object(self):
-        """更改物体时更新
-
-        :return:
-        """
-        if self.object != self.tmp_object:
-            self.tmp_object = self.object
-            self.update_bound_box(self.tmp_object)
-            self.update_property()
-            print("更改物体", self.tmp_object)

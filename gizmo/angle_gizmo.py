@@ -31,13 +31,25 @@ class AngleGizmo(Gizmo, GizmoUtils):
     mouse_dpi = 10
     matrix_basis: "Matrix"
 
+    @property
+    def angle_delta(self):
+        event = self.event
+        tweak = self.tweak
+
+        delta = (self.init_mouse_x - event.mouse_x) / self.mouse_dpi
+
+        if 'SNAP' in tweak:
+            delta = round(delta)
+        if 'PRECISE' in tweak:
+            delta /= self.mouse_dpi
+        return delta
+
     def update_angle(self):
         """ 更新修改器角度
 
         :return:
         """
-        delta = self.delta
-        self.target_set_value('angle', self.float_angle_value - delta)
+        self.target_set_value('angle', self.float_angle_value - self.angle_delta)
 
     def update_matrix(self):
         """更新gizmo变换坐标
@@ -80,7 +92,7 @@ class AngleGizmo(Gizmo, GizmoUtils):
 
     def modal(self, context, event, tweak):
         self.init_modal_data(context, event, tweak)
-
+        self.update_deform_wireframe()
         self.update_angle()
         self.add_handler()
-        return {'RUNNING_MODAL'}
+        return self.event_ops()

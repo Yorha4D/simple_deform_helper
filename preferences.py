@@ -123,10 +123,14 @@ def set_limits(value, index) -> None:
 
 
 class SimpleDeformGizmoObjectPropertyGroup(PropertyGroup):
+    def update(self, context):
+        ...
+
     up_limits: FloatProperty(name='up',
                              description='UP Limits(Red)',
                              get=lambda _: get_limits(1),
                              set=lambda _, value: set_limits(value, 1),
+                             update=update,
                              default=1,
                              max=1,
                              min=0)
@@ -136,6 +140,7 @@ class SimpleDeformGizmoObjectPropertyGroup(PropertyGroup):
                                get=lambda _: get_limits(0),
                                set=lambda _, value: set_limits(value, 0),
                                default=0,
+                               update=update,
                                max=1,
                                min=0)
 

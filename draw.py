@@ -49,12 +49,12 @@ class Handler:
 
 
 class Draw3D(Handler):
-    tow_vector = (Vector(), Vector())
-    simple_modifier_point_co = tow_vector  # 存上限和下限原点,未移动的点
+    tow_vector = [Vector(), Vector()]
     simple_modifier_limits_co = tow_vector  # 存上下限移动的点,根据系数来设置位置
-    simple_modifier_limits_bound = None
     object_max_min_co = tow_vector  # 存储网格的最大最小坐标,使用物体的名称作为key:value是最大最小坐标   "co":None co储存活动项的最大最小坐标
-    deform_bound_draw_data = None  # 绘制形变变界框的数据,就是白色的边框,数据从复制出来的一个物体里面拿到 indices: "(list[Vector],(int,int))"
+    simple_modifier_limits_bound = []
+    deform_bound_draw_data = []  # 绘制形变变界框的数据,就是白色的边框,数据从复制出来的一个物体里面拿到 indices: "(list[Vector],(int,int))"
+    numpy_data = {}  # 存放变形网格绘制信息
 
     @classmethod
     def draw_3d_shader(cls, pos, indices, color=None, *, shader_name='3D_UNIFORM_COLOR', draw_type='LINES'):
@@ -121,7 +121,7 @@ class Draw3D(Handler):
 
     @classmethod
     def co_to_bound(cls, data):
-        """将两个最大最小坐标转换为8个坐梂用于绘制
+        """将两个最大最小坐标转换为8个坐标用于绘制
         :param data:
         :return:list[list[Vector]]
         """
@@ -159,16 +159,16 @@ class Draw3D(Handler):
         :return:
         """
         bgl.glDisable(bgl.GL_DEPTH_TEST)
-        if cls.simple_modifier_point_co:
-            # draw  line
-            cls.draw_3d_shader(cls.simple_modifier_point_co, ((1, 0),), (1, 1, 0, 0.3))
-        if cls.simple_modifier_limits_co:
-            # draw limits line
-            cls.draw_3d_shader(cls.simple_modifier_limits_co, ((1, 0),), (1, 1, 0, 0.5))
-
-            # TODO draw pos
-            # cls.draw_3d_shader([line_pos[1]], (), (0, 1, 0, 0.5),
-            #                    shader_name='3D_UNIFORM_COLOR', draw_type='POINTS')
+        # if :
+        #     # draw  line
+        #     cls.draw_3d_shader(cls.simple_modifier_point_co, ((1, 0),), (1, 1, 0, 0.3))
+        # if cls.simple_modifier_limits_co:
+        #     # draw limits line
+        #     cls.draw_3d_shader(cls.simple_modifier_limits_co, ((1, 0),), (1, 1, 0, 0.5))
+        #
+        #     # TODO draw pos
+        #     # cls.draw_3d_shader([line_pos[1]], (), (0, 1, 0, 0.5),
+        #     #                    shader_name='3D_UNIFORM_COLOR', draw_type='POINTS')
 
     @classmethod
     def draw_deform_bound(cls):
@@ -210,7 +210,7 @@ class Draw3D(Handler):
         elif simple_poll and (is_bend and not display_switch_axis):
             bgl.glDisable(bgl.GL_DEPTH_TEST)
             cls.draw_box(co_data, matrix)
-            GizmoUtils.new_empty(obj, modifier)
+            GizmoUtils.empty_new(obj, modifier)
 
     @classmethod
     def draw_bound_box(cls):

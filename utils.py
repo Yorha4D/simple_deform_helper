@@ -99,44 +99,6 @@ class Property(CustomShape):
         else:
             return ob.SimpleDeformGizmo_PropertyGroup
 
-    @property
-    def delta(self):
-        event = self.event
-        tweak = self.tweak
-        context = self.context
-
-        delta = (self.init_mouse_x - event.mouse_x) / self.mouse_dpi
-
-        if 'SNAP' in tweak:
-            delta = round(delta)
-        if 'PRECISE' in tweak:
-            delta /= self.mouse_dpi
-
-        if getattr(self, "control_mode", None) in ('up_limits', 'down_limits'):
-            x, y = view3d_utils.location_3d_to_region_2d(
-                context.region, context.space_data.region_3d, self.up_point)
-            x2, y2 = view3d_utils.location_3d_to_region_2d(
-                context.region, context.space_data.region_3d, self.down_point)
-
-            mouse_line_distance = math.sqrt(((event.mouse_region_x - x2) ** 2) +
-                                            ((event.mouse_region_y - y2) ** 2))
-            straight_line_distance = sqrt(((x2 - x) ** 2) +
-                                          ((y2 - y) ** 2))
-            delta = mouse_line_distance / \
-                    straight_line_distance + 0
-
-            v_up = Vector((x, y))
-            v_down = Vector((x2, y2))
-            limits_angle = v_up - v_down
-
-            mouse_v = Vector((event.mouse_region_x, event.mouse_region_y))
-
-            mouse_angle = mouse_v - v_down
-            angle_ = mouse_angle.angle(limits_angle)
-            if angle_ > (pi / 2):
-                delta = 0
-        return delta
-
     @classmethod
     def get_vector_axis(cls, mod: "bpy.types.Modifer"):
         """获取矢量轴
@@ -198,7 +160,7 @@ class Property(CustomShape):
 
     @property
     def limits_min_value(self) -> "float":
-        return self.simple_modifier_down_limits_value - self.limits_scope
+        return self.simple_modifier_down_limits_value + self.limits_scope
 
     @property
     def limits_middle(self) -> "float":
@@ -230,20 +192,28 @@ class Property(CustomShape):
         return bpy.context.object
 
     @property
+    def simple_modifier_point_co(self):
+
+        top, bottom, left, right, front, back = self.each_face_pos()
+        (up, down), (up_limits, down_limits) = self.from_simple_modifiers_get_limits_pos(self.simple_modifier, (
+            top, bottom, left, right, front, back))
+        return down, up
+
+    @property
     def up_point(self) -> "Vector":
-        ...
+        return self.simple_modifier_point_co[1]
 
     @property
     def down_point(self) -> "Vector":
-        ...
-
-    @property
-    def down_limits(self) -> "Vector":
-        ...
+        return self.simple_modifier_point_co[0]
 
     @property
     def up_limits(self) -> "Vector":
-        ...
+        return self.simple_modifier_limits_co[1]
+
+    @property
+    def down_limits(self) -> "Vector":
+        return self.simple_modifier_limits_co[0]
 
 
 class Calculation(Property):
@@ -362,6 +332,23 @@ class Calculation(Property):
 
 
 class UpdateAndGetData(Calculation):
+    tmp_save_data = None
+
+    @property
+    def need_update(self) -> bool:
+        """存储物体的信息,如果更改了物体或者更改了参数就更新
+        反回是否需要更新的布尔值
+        :return:
+        """
+
+        modifier_property = [getattr(self.simple_modifier, i)
+                             for i in G_MODIFIERS_PROPERTY]
+        tk = (self.object, self.simple_modifier, modifier_property)
+        if self.tmp_save_data != tk:
+            self.tmp_save_data = tk
+            return True
+        return False
+
     @classmethod
     def get_origin_bounds(cls, obj: 'bpy.context.object') -> list:
         modifiers_list = {}
@@ -450,9 +437,9 @@ class UpdateAndGetData(Calculation):
                 i = point_lit[f][0]
                 j = point_lit[f][1]
                 angle = cls.point_to_angle(i, j, f, axis_)
-                if abs(angle - 180) < 0.00001:
+                if abs(angle - 180) < 0.0001:
                     up, down = j, i
-                elif abs(angle) < 0.00001:
+                elif abs(angle) < 0.0001:
                     up, down = i, j
         else:
             up, down = cls.get_up_down(mod, axis, top, bottom,
@@ -473,26 +460,15 @@ class UpdateAndGetData(Calculation):
         :return:
         """
         cls.object_max_min_co = cls.get_mesh_max_min_co(obj)
-        print(cls.object_max_min_co)
 
-    @classmethod
-    def update_deform_wireframe(cls, obj):
+    def update_deform_wireframe(self, ):
         """更新形变框
+        只能在模态内更新
         """
         context = bpy.context
         data = bpy.data
-        matrix = obj.matrix_world.copy()  # 物体矩阵
-        # add simple_deform mesh
-        (min_x, min_y, min_z), (max_x, max_y,
-                                max_z) = cls.object_max_min_co
-        vertexes = ((max_x, min_y, min_z),
-                    (min_x, min_y, min_z),
-                    (max_x, max_y, min_z),
-                    (min_x, max_y, min_z),
-                    (max_x, min_y, max_z),
-                    (min_x, min_y, max_z),
-                    (max_x, max_y, max_z),
-                    (min_x, max_y, max_z))
+        matrix = self.object.matrix_world.copy()  # 物体矩阵
+        vertexes = self.co_to_bound(self.object_max_min_co)
         if data.objects.get(G_NAME):
             data.objects.remove(data.objects.get(G_NAME))
 
@@ -504,10 +480,10 @@ class UpdateAndGetData(Calculation):
 
         new_object = data.objects.new(G_NAME, mesh)
 
-        cls.link_active_collection(new_object)
+        self.link_active_collection(new_object)
 
-        if new_object.parent != obj:
-            new_object.parent = obj
+        if new_object.parent != self.object:
+            new_object.parent = self.object
 
         new_object.modifiers.clear()
         subdivision = new_object.modifiers.new('1', 'SUBSURF')
@@ -540,29 +516,64 @@ class UpdateAndGetData(Calculation):
         key = (ver_len, edge_len)
         list_edges = np.zeros(edge_len * 2, dtype=np.int32)
         list_vertices = np.zeros(ver_len * 3, dtype=np.float32)
-        # if key in cls.numpy_data:
-        #     list_edges, list_vertices = cls.numpy_data[key]
-        # else:
-        #     cls.numpy_data[key] = (list_edges, list_vertices)
+        if key in self.numpy_data:
+            list_edges, list_vertices = self.numpy_data[key]
+        else:
+            self.numpy_data[key] = (list_edges, list_vertices)
 
         obj.data.vertices.foreach_get('co', list_vertices)
-        ver = list_vertices.reshape((ver_len, 3))
-        ver = np.insert(ver, 3, 1, axis=1).T
+        ver = np.insert(list_vertices.reshape((ver_len, 3)), 3, 1, axis=1).T
         ver[:] = np.dot(matrix, ver)
 
         ver /= ver[3, :]
-        ver = ver.T
-        ver = ver[:, :3]
+        ver = ver.T[:, :3]
         obj.data.edges.foreach_get('vertices', list_edges)
         indices = list_edges.reshape((edge_len, 2))
 
         limits = obj.modifiers.active.limits[:]
         modifier_property = [getattr(context.object.modifiers.active, i)
                              for i in G_MODIFIERS_PROPERTY]
-        cls.deform_bound_draw_data = ver, indices, limits, modifier_property
+        self.deform_bound_draw_data = ver, indices, limits, modifier_property
 
+    def update_limits_and_bound(self):
+        """更新上下限边界框
+        """
+        modifier = self.simple_modifier
+        axis = self.simple_modifier_deform_axis
+
+        top, bottom, left, right, front, back = self.each_face_pos()
+        (up, down), (up_limits, down_limits) = self.from_simple_modifiers_get_limits_pos(modifier, (
+            top, bottom, left, right, front, back))
+
+        self.simple_modifier_limits_co[:] = down_limits, up_limits
+        print(up, down, "update_point", up_limits, down_limits)
+
+        data = top, bottom, left, right, front, back
+
+        if modifier.origin:
+            vector_axis = self.get_vector_axis(modifier)
+            origin_mat = modifier.origin.matrix_world.to_3x3()
+            axis_ = origin_mat @ vector_axis
+            point_list = [[top, bottom], [left, right], [front, back]]
+            for f in range(point_list.__len__()):
+                i = point_list[f][0]
+                j = point_list[f][1]
+                angle = self.point_to_angle(i, j, f, axis_)
+                if abs(angle - 180) < 0.00001:
+                    point_list[f][1], point_list[f][0] = up_limits, down_limits
+                elif abs(angle) < 0.00001:
+                    point_list[f][0], point_list[f][1] = up_limits, down_limits
+            [[top, bottom], [left, right], [front, back]] = point_list
+        else:
+            top, bottom, left, right, front, back = self.get_up_down_return_list(
+                modifier, axis, up_limits, down_limits, data)
+
+        self.simple_modifier_limits_bound[:] = (right[0], back[1], top[2]), (left[0], front[1], bottom[2],)
+
+
+class Empty(UpdateAndGetData):
     @classmethod
-    def new_empty(cls, obj, mod):
+    def empty_new(cls, obj, mod):
         """新建空物体作为轴来使用
         :param obj:
         :param mod:
@@ -611,50 +622,12 @@ class UpdateAndGetData(Calculation):
         origin_object.scale = 1, 1, 1
         return origin_object, G_CON_LIMIT_NAME
 
-    def update_limits_point_and_bound(self):
-        """更新上下限边界框
-        """
-        matrix = self.object.matrix_world
-        modifier = self.simple_modifier
-        axis = self.simple_modifier_deform_axis
+    def empty_remove(self):
+        ...
 
-        # calculation  limits position
-        top, bottom, left, right, front, back = self.each_face_pos(matrix)
-        (up, down), (up_limits, down_limits) = self.from_simple_modifiers_get_limits_pos(modifier, (
-            top, bottom, left, right, front, back))
 
-        data = top, bottom, left, right, front, back
 
-        if modifier.origin:
-            vector_axis = self.get_vector_axis(modifier)
-            origin_mat = modifier.origin.matrix_world.to_3x3()
-            axis_ = origin_mat @ vector_axis
-            point_lit = [[top, bottom], [left, right], [front, back]]
-            for f in range(point_lit.__len__()):
-                i = point_lit[f][0]
-                j = point_lit[f][1]
-                angle = self.point_to_angle(i, j, f, axis_)
-                if abs(angle - 180) < 0.00001:
-                    point_lit[f][1], point_lit[f][0] = up_limits, down_limits
-                elif abs(angle) < 0.00001:
-                    point_lit[f][0], point_lit[f][1] = up_limits, down_limits
-            [[top, bottom], [left, right], [front, back]] = point_lit
-        else:
-            top, bottom, left, right, front, back = self.get_up_down_return_list(
-                modifier, axis, up_limits, down_limits, data)
-        data = top, bottom, left, right, front, back
-        (top, bottom, left, right, front, back) = self.matrix_calculation(matrix.inverted(), data)
-
-        self.simple_modifier_limits_bound = (matrix, (right[0], back[1], top[2]), (left[0], front[1], bottom[2],))
-        self.simple_modifier_point_co = (up, down)
-        self.simple_modifier_limits_co = (up_limits, down_limits)
-
-        # self.up_point = up
-        # self.down_point = down
-        # self.up_limits = up_limits
-        # self.down_limits = down_limits
-
-class GizmoUtils(UpdateAndGetData):
+class GizmoUtils(Empty):
 
     @classmethod
     def value_limit(cls, value, max_value=1, min_value=0) -> float:
@@ -726,20 +699,27 @@ class GizmoUtils(UpdateAndGetData):
     def matrix_calculation(cls, mat: 'Matrix', calculation_list: 'iter') -> list:
         return [mat @ Vector(i) for i in calculation_list]
 
-    @classmethod
-    def set_empty_obj_matrix(cls, origin_mode, empty_object, up_, down_, up, down):
-        tow = [2 * 3]
-        if origin_mode == 'UP_LIMITS':
-            empty_object.matrix_world.translation = Vector(up_)
-        elif origin_mode == 'DOWN_LIMITS':
-            empty_object.matrix_world.translation = Vector(
-                down_)
-        elif origin_mode == 'LIMITS_MIDDLE':
-            empty_object.matrix_world.translation = cls.set_reduce(
-                cls.set_reduce(up_, down_, '+'), tow, '/')
-        elif origin_mode == 'MIDDLE':
-            empty_object.matrix_world.translation = cls.set_reduce(
-                cls.set_reduce(up, down, '+'), tow, '/')
+    def event_ops(self):
+        """通过输入键位来更改属性"""
+        # event ctrl
+        data_path = ('object.SimpleDeformGizmo_PropertyGroup.origin_mode',
+                     'object.modifiers.active.origin.SimpleDeformGizmo_PropertyGroup.origin_mode')
+
+        event = self.event
+
+        if event.type in ('WHEELUPMOUSE', 'WHEELDOWNMOUSE'):
+            reverse = (event.type == 'WHEELUPMOUSE')
+            for path in data_path:
+                bpy.ops.wm.context_cycle_enum(
+                    data_path=path, reverse=reverse, wrap=True)
+        elif event.type in ('X', 'Y', 'Z'):
+            self.simple_modifier.deform_axis = event.type
+        elif event.type == 'A':
+            self.pref.display_bend_axis_switch_gizmo = True
+            return {'FINISHED'}
+        self.add_handler()
+
+        return {'RUNNING_MODAL'}
 
 
 def get_active_simple_modifier() -> "bpy.types.Modifier":
