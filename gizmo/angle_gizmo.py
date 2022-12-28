@@ -88,11 +88,14 @@ class AngleGizmo(Gizmo, GizmoUtils):
         self.float_angle_value = self.target_get_value('angle')
         self.init_event(event)
         self.update_bound_box(self.object)
+        self.update_deform_wireframe()
         return {"RUNNING_MODAL"}
 
     def modal(self, context, event, tweak):
         self.init_modal_data(context, event, tweak)
-        self.update_deform_wireframe()
+        self.update_bound_box(self.object)
         self.update_angle()
+        self.update_deform_wireframe()
+        self.update_empty()
         self.add_handler()
         return self.event_ops()

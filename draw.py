@@ -2,10 +2,11 @@ import bgl
 import blf
 import bpy
 import gpu
+import numpy as np
 from gpu_extras.batch import batch_for_shader
 from mathutils import Vector
 
-from .data import G_NAME, G_INDICES
+from .data import G_NAME, G_INDICES, G_MODIFIERS_PROPERTY
 
 
 class Handler:
@@ -19,7 +20,7 @@ class Handler:
         """
         if not cls.handler:
             cls.handler = bpy.types.SpaceView3D.draw_handler_add(
-                Draw3D.draw_bound_box, (), 'WINDOW', 'POST_VIEW')
+                Draw3D().draw_bound_box, (), 'WINDOW', 'POST_VIEW')
 
     @classmethod
     def draw_scale_text(cls, ob):
@@ -49,9 +50,9 @@ class Handler:
 
 
 class Draw3D(Handler):
-    tow_vector = [Vector(), Vector()]
-    simple_modifier_limits_co = tow_vector  # 存上下限移动的点,根据系数来设置位置
-    object_max_min_co = tow_vector  # 存储网格的最大最小坐标,使用物体的名称作为key:value是最大最小坐标   "co":None co储存活动项的最大最小坐标
+    simple_modifier_limits_co = [Vector(), Vector()]  # 存上下限移动的点,根据系数来设置位置
+    simple_modifier_point_co = [Vector(), Vector()]
+    object_max_min_co = [Vector(), Vector()]  # 存储网格的最大最小坐标,使用物体的名称作为key:value是最大最小坐标   "co":None co储存活动项的最大最小坐标
     simple_modifier_limits_bound = []
     deform_bound_draw_data = []  # 绘制形变变界框的数据,就是白色的边框,数据从复制出来的一个物体里面拿到 indices: "(list[Vector],(int,int))"
     numpy_data = {}  # 存放变形网格绘制信息
@@ -84,27 +85,6 @@ class Draw3D(Handler):
 
         batch.draw(shader)
 
-    font_info = {
-        'font_id': 0,
-        'handler': None,
-    }
-
-    @classmethod
-    def draw_str(cls):
-        obj = bpy.context.object
-        font_id = cls.font_info['font_id']
-
-        blf.position(font_id, 200, 80, 0)
-        blf.size(font_id, 15, 72)
-        blf.color(font_id, 1, 1, 1, 1)
-        blf.draw(
-            font_id,
-            f'The scaling value of the object {obj.name_full} is not 1,'
-            f' which will cause the deformation of the simple deformation modifier.'
-            f' Please apply the scaling before deformation')
-        if obj.scale == Vector((1, 1, 1)):
-            cls.del_handler_text()
-
     @classmethod
     def draw_text(cls, x, y, text='Hello Word', font_id=0, size=10, *, color=(0.5, 0.5, 0.5, 1), dpi=72, column=0):
         blf.position(font_id, x, y - (size * (column + 1)), 0)
@@ -112,12 +92,15 @@ class Draw3D(Handler):
         blf.draw(font_id, text)
         blf.color(font_id, *color)
 
-    @classmethod
-    def draw_box(cls, mat):
-        pref = cls.pref_()
-        from .utils import GizmoUtils
-        coords = GizmoUtils.matrix_calculation(mat, cls.co_to_bound(cls.object_max_min_co))
-        cls.draw_3d_shader(coords, G_INDICES, pref.bound_box_color)
+    font_info = {
+        'font_id': 0,
+        'handler': None,
+    }
+
+    @property
+    def pref(self=None):
+        from .utils import Pref
+        return Pref.pref_()
 
     @classmethod
     def co_to_bound(cls, data):
@@ -137,24 +120,47 @@ class Draw3D(Handler):
             (min_x, max_y, max_z))
 
     @classmethod
-    def draw_limits_bound_box(cls):
+    def c_matrix(cls, mat, data):
+        from .utils import GizmoUtils
+        return GizmoUtils.matrix_calculation(mat, data)
+
+    @classmethod
+    def draw_str(cls):
+        obj = bpy.context.object
+        font_id = cls.font_info['font_id']
+
+        blf.position(font_id, 200, 80, 0)
+        blf.size(font_id, 15, 72)
+        blf.color(font_id, 1, 1, 1, 1)
+        blf.draw(
+            font_id,
+            f'The scaling value of the object {obj.name_full} is not 1,'
+            f' which will cause the deformation of the simple deformation modifier.'
+            f' Please apply the scaling before deformation')
+        if obj.scale == Vector((1, 1, 1)):
+            cls.del_handler_text()
+
+    @classmethod
+    def draw_box(cls, matrix):
+        coords = cls.c_matrix(matrix, cls.co_to_bound(cls.object_max_min_co))
+        cls.draw_3d_shader(coords, G_INDICES, cls.pref.fget().bound_box_color)
+
+    @classmethod
+    def draw_limits_bound_box(cls, matrix):
         """TODO绘制限制边界框
 
         :return:
         """
-        pref = cls.pref_()
-        # if cls.limits_bound_box:
-        #     # draw limits_bound_box
-        #     mat, data = cls.limits_bound_box
-        #     bgl.glEnable(bgl.GL_DEPTH_TEST)
-        #     from .utils import Utils
-        #     coords = Utils.matrix_calculation(mat, cls.co_to_bound(data))
-        #     cls.draw_3d_shader(coords,
-        #                        G_INDICES,
-        #                        pref.limits_bound_box_color)
+        if cls.simple_modifier_limits_bound:
+            # draw limits_bound_box
+            bgl.glEnable(bgl.GL_DEPTH_TEST)
+            cls.draw_3d_shader(
+                cls.c_matrix(matrix, cls.co_to_bound(cls.simple_modifier_limits_bound)),
+                G_INDICES,
+                cls.pref.fget().limits_bound_box_color
+            )
 
-    @classmethod
-    def draw_limits_line(cls):
+    def draw_limits_line(self, matrix):
         """绘制上下限的线
         :return:
         """
@@ -162,60 +168,64 @@ class Draw3D(Handler):
         # if :
         #     # draw  line
         #     cls.draw_3d_shader(cls.simple_modifier_point_co, ((1, 0),), (1, 1, 0, 0.3))
-        # if cls.simple_modifier_limits_co:
-        #     # draw limits line
-        #     cls.draw_3d_shader(cls.simple_modifier_limits_co, ((1, 0),), (1, 1, 0, 0.5))
-        #
-        #     # TODO draw pos
-        #     # cls.draw_3d_shader([line_pos[1]], (), (0, 1, 0, 0.5),
-        #     #                    shader_name='3D_UNIFORM_COLOR', draw_type='POINTS')
+
+        co = self.__class__.simple_modifier_limits_co
+
+        if co:
+            # draw limits line
+            self.draw_3d_shader(self.c_matrix(matrix, co), ((1, 0),), (1, 1, 0, 0.5))
+
+            # TODO draw pos
+            # cls.draw_3d_shader([line_pos[1]], (), (0, 1, 0, 0.5),
+            #                    shader_name='3D_UNIFORM_COLOR', draw_type='POINTS')
 
     @classmethod
-    def draw_deform_bound(cls):
+    def draw_deform_bound(cls, obj, modifier):
         """TODO 绘制形变框
         添加一个物体并把当前简易形变修改器的参数复制到这个物体
         再绘制出这个物体的线,就形成了形变边界框
 
         :return:
         """
-        pref = cls.pref_()
         if cls.deform_bound_draw_data:
-            ver, indices, limits, modifier_property = cls.deform_bound_draw_data
-            cls.draw_3d_shader(ver, indices, pref.deform_wireframe_color)
+            matrix = obj.matrix_world
+            ver, indices, limits, modifier_property, mat = cls.deform_bound_draw_data
+            mod_data = ([getattr(modifier, i) for i in G_MODIFIERS_PROPERTY] == modifier_property)
+            if mod_data and mat == matrix:
+                bgl.glEnable(bgl.GL_DEPTH_TEST)
+                cls.draw_3d_shader(
+                    ver,
+                    indices,
+                    cls.pref.fget().deform_wireframe_color,
+                )
 
-    @classmethod
-    def is_draw_box(cls, context):
+    def is_draw_box(self, context):
         """绘制框"""
-        return
 
         from .utils import GizmoUtils
         obj = context.object  # 活动物体
         matrix = obj.matrix_world  # 活动物体矩阵
         modifier = context.object.modifiers.active  # 活动修改器
 
-        pref = cls.pref_()
         simple_poll = GizmoUtils.simple_deform_poll(context)
         is_bend = modifier and (modifier.deform_method == 'BEND')
-        display_switch_axis = not pref.display_bend_axis_switch_gizmo
+        display_switch_axis = not self.pref.display_bend_axis_switch_gizmo
 
-        cls.draw_scale_text(obj)
-        GizmoUtils.update_co_data(obj, modifier)
+        self.draw_scale_text(obj)
 
         if simple_poll and ((not is_bend) or display_switch_axis):
             # draw bound box
-            cls.draw_box(matrix)
-            cls.draw_deform_bound()
-            cls.draw_limits_line()
-            cls.draw_limits_bound_box()
+            self.draw_box(matrix)
+            self.draw_limits_line(matrix)
+            self.draw_limits_bound_box(matrix)
+
+            self.draw_deform_bound(obj, modifier)
         elif simple_poll and (is_bend and not display_switch_axis):
             bgl.glDisable(bgl.GL_DEPTH_TEST)
-            cls.draw_box(co_data, matrix)
-            GizmoUtils.empty_new(obj, modifier)
+            self.draw_box(matrix)
+            # GizmoUtils.empty_new(obj, modifier)
 
-    @classmethod
-    def draw_bound_box(cls):
-
-        # return 
+    def draw_bound_box(self):
         gpu.state.blend_set('ALPHA')
         gpu.state.line_width_set(1)
         bgl.glEnable(bgl.GL_BLEND)
@@ -225,6 +235,6 @@ class Draw3D(Handler):
         context = bpy.context
         from .utils import GizmoUtils
         if GizmoUtils.simple_deform_poll(context):
-            cls.is_draw_box(context)
+            self.is_draw_box(context)
         else:
-            cls.del_handler()
+            self.del_handler()

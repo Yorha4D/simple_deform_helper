@@ -10,42 +10,7 @@ from mathutils import Matrix, Vector
 from ..utils import Pref, GizmoUtils
 
 
-class EmptyUpdate(Gizmo, GizmoUtils, Pref):
-    empty_object: "str" = ""
-
-    def update_empty(self):
-        if self.origin_mode != 'NOT':
-            obj, _ = self.empty_new(self.object, self.simple_modifier)
-            self.empty_object = obj.name
-            self.set_empty_obj_matrix()
-        elif self.simple_modifier.orign:  # 不对原点进行操作但是还但在原点物体
-            ...
-
-    def set_empty_obj_matrix(self):
-        tow = [2] * 3
-
-        empty_object = bpy.context.scene.objects.get(self.empty_object, None)
-        if not empty_object:
-            return
-
-        matrix = self.object.matrix_world
-        down_point, up_point = self.down_point, self.up_point
-        down_limits, up_limits = self.simple_modifier_limits_co
-
-        origin_mode = self.origin_mode
-        if origin_mode == 'UP_LIMITS':
-            empty_object.matrix_world.translation = matrix @ up_limits
-        elif origin_mode == 'DOWN_LIMITS':
-            empty_object.matrix_world.translation = matrix @ down_limits
-        elif origin_mode == 'LIMITS_MIDDLE':
-            empty_object.matrix_world.translation = self.set_reduce(
-                self.set_reduce(matrix @ up_limits, matrix @ down_limits, '+'), tow, '/')
-        elif origin_mode == 'MIDDLE':
-            empty_object.matrix_world.translation = self.set_reduce(
-                self.set_reduce(matrix @ up_point, matrix @ down_point, '+'), tow, '/')
-
-
-class UpdateGizmo(EmptyUpdate):
+class UpdateGizmo(Gizmo, GizmoUtils, Pref):
     """TODO 更改参数时更新
     切换物体时更新
     手动更改值时更新
@@ -105,8 +70,6 @@ class UpdateGizmo(EmptyUpdate):
         else:
             set_value = self.simple_modifier_up_limits_value
 
-        print(self.mouse_value, value, set_value)
-
         self.target_set_value('down_limits_value', value)
         self.target_set_value('up_limits_value', set_value)
 
@@ -129,18 +92,15 @@ class UpdateGizmo(EmptyUpdate):
                 set_value = self.simple_modifier_down_limits_value
         else:
             set_value = self.simple_modifier_down_limits_value
-        print(self.mouse_value, value, set_value)
 
         self.target_set_value('down_limits_value', set_value)
         self.target_set_value('up_limits_value', value)
 
     def update_prop_value(self):
-        self.update_empty()
         if 'up_limits' == self.control_mode:
             self.set_up_value()
         elif 'down_limits' == self.control_mode:
             self.set_down_value()
-        self.update_empty()
 
     def update_gizmo_translation(self):
         """更新gizmo矩阵
@@ -212,6 +172,8 @@ class ViewSimpleDeformGizmo(UpdateGizmo):
         elif self.control_mode == "down_limits":
             self.target_set_value('down_limits_value', down)
 
+        self.update_bound_box(self.object)
+        self.update_deform_wireframe()
         self.update_empty()
         return {'RUNNING_MODAL'}
 
@@ -222,11 +184,10 @@ class ViewSimpleDeformGizmo(UpdateGizmo):
         self.update_limits_and_bound()
         self.update_gizmo_translation()
 
-        self.update_deform_wireframe()
-
         self.update_empty()
+        self.update_deform_wireframe()
+        self.add_handler()
         return self.event_ops()
 
     def refresh(self, context):
-        print("refresh", self, context)
         self.update_empty()

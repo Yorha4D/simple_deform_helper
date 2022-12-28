@@ -4,9 +4,7 @@ import uuid
 import bpy
 import numpy as np
 from bpy.types import AddonPreferences
-from bpy_extras import view3d_utils
 from mathutils import Vector, Matrix
-from math import sqrt, pi
 
 from .data import G_ADDON_NAME, G_NAME, G_INDICES, G_MODIFIERS_PROPERTY, G_CON_LIMIT_NAME, G_GizmoCustomShapeDict
 from .draw import Draw3D
@@ -25,26 +23,6 @@ class NotUse:
                     if space.type == 'PROPERTIES' and space.context == 'MODIFIER':
                         return True
         return False
-
-    def exit(self, context, cancel):
-        """TODO
-        :param context:
-        :param cancel:
-        :return:
-        """
-        context.area.header_text_set(None)
-        #
-        # if cancel:
-        #     if 'angle' == self.control_mode:
-        #         self.target_set_value('angle', self.int_value_angle)
-        #     elif 'deform_axis' == self.control_mode:
-        #         self.target_set_value('deform_axis', self.value_deform_axis)
-        #     elif 'up_limits' == self.control_mode:
-        #         self.target_set_value('up_limits', self.int_value_up_limits)
-        #
-        #     elif 'down_limits' == self.control_mode:
-        #         self.target_set_value(
-        #             'down_limits', self.int_value_down_limits)
 
 
 class Pref:
@@ -190,14 +168,6 @@ class Property(CustomShape):
     @property
     def object(self) -> "bpy.types.Object":
         return bpy.context.object
-
-    @property
-    def simple_modifier_point_co(self):
-
-        top, bottom, left, right, front, back = self.each_face_pos()
-        (up, down), (up_limits, down_limits) = self.from_simple_modifiers_get_limits_pos(self.simple_modifier, (
-            top, bottom, left, right, front, back))
-        return down, up
 
     @property
     def up_point(self) -> "Vector":
@@ -375,6 +345,7 @@ class UpdateAndGetData(Calculation):
         :param obj:
         :return:
         """
+        obj
         if obj.type == 'MESH':
             ver_len = obj.data.vertices.__len__()
             list_vertices = np.zeros(ver_len * 3, dtype=np.float32)
@@ -385,7 +356,7 @@ class UpdateAndGetData(Calculation):
             list_vertices = np.zeros(ver_len * 3, dtype=np.float32)
             obj.data.points.foreach_get('co', list_vertices)
             list_vertices = list_vertices.reshape(ver_len, 3)
-        return tuple(list_vertices.min(axis=0)), tuple(list_vertices.max(axis=0))
+        return [Vector(list_vertices.min(axis=0)), Vector(list_vertices.max(axis=0))]
 
     @classmethod
     def get_up_down(cls, mod, axis, top, bottom, left, right, front, back):
@@ -427,6 +398,9 @@ class UpdateAndGetData(Calculation):
         down_limits = mod.limits[0]
         axis = mod.deform_axis
 
+        up: "Vector"
+        down: "Vector"
+
         if mod.origin:
             vector_axis = cls.get_vector_axis(mod)
             origin_mat = mod.origin.matrix_world.to_3x3()
@@ -437,14 +411,15 @@ class UpdateAndGetData(Calculation):
                 i = point_lit[f][0]
                 j = point_lit[f][1]
                 angle = cls.point_to_angle(i, j, f, axis_)
-                if abs(angle - 180) < 0.0001:
+                if abs(angle - 180) < 0.1:
                     up, down = j, i
-                elif abs(angle) < 0.0001:
+                elif abs(angle) < 0.1:
                     up, down = i, j
         else:
             up, down = cls.get_up_down(mod, axis, top, bottom,
                                        left, right, front, back)
 
+        print("get\t\t", up, down)
         e = lambda a: Vector((cls.set_reduce(down, cls.set_reduce(cls.set_reduce(
             up, down, '-'), [a, a, a], '*'), '+')))
 
@@ -459,7 +434,9 @@ class UpdateAndGetData(Calculation):
         :param obj:
         :return:
         """
-        cls.object_max_min_co = cls.get_mesh_max_min_co(obj)
+        # print("更新前", cls.object_max_min_co, cls)
+        cls.object_max_min_co[:] = cls.get_mesh_max_min_co(obj)
+        # print("更新后", cls.object_max_min_co, cls)
 
     def update_deform_wireframe(self, ):
         """更新形变框
@@ -502,7 +479,7 @@ class UpdateAndGetData(Calculation):
                 simple_deform.limits[0] = mo.limits[0]
                 simple_deform.angle = mo.angle
                 simple_deform.show_viewport = mo.show_viewport
-                obj = GizmoUtils.get_depsgraph(new_object)
+                obj = self.get_depsgraph(new_object)
 
         new_object.hide_set(True)
         new_object.hide_viewport = False
@@ -533,7 +510,7 @@ class UpdateAndGetData(Calculation):
         limits = obj.modifiers.active.limits[:]
         modifier_property = [getattr(context.object.modifiers.active, i)
                              for i in G_MODIFIERS_PROPERTY]
-        self.deform_bound_draw_data = ver, indices, limits, modifier_property
+        self.deform_bound_draw_data[:] = ver, indices, limits, modifier_property, matrix
 
     def update_limits_and_bound(self):
         """更新上下限边界框
@@ -542,36 +519,69 @@ class UpdateAndGetData(Calculation):
         axis = self.simple_modifier_deform_axis
 
         top, bottom, left, right, front, back = self.each_face_pos()
-        (up, down), (up_limits, down_limits) = self.from_simple_modifiers_get_limits_pos(modifier, (
-            top, bottom, left, right, front, back))
+        print(self.each_face_pos())
 
-        self.simple_modifier_limits_co[:] = down_limits, up_limits
-        print(up, down, "update_point", up_limits, down_limits)
+        # (up_point, down_point), (up_limits, down_limits) = self.from_simple_modifiers_get_limits_pos(modifier, (
+        #     top, bottom, left, right, front, back))
 
-        data = top, bottom, left, right, front, back
+        # self.simple_modifier_limits_co[:] = down_limits, up_limits
+        # self.simple_modifier_point_co[:] = down_point, up_point
 
         if modifier.origin:
             vector_axis = self.get_vector_axis(modifier)
             origin_mat = modifier.origin.matrix_world.to_3x3()
             axis_ = origin_mat @ vector_axis
-            point_list = [[top, bottom], [left, right], [front, back]]
-            for f in range(point_list.__len__()):
-                i = point_list[f][0]
-                j = point_list[f][1]
-                angle = self.point_to_angle(i, j, f, axis_)
-                if abs(angle - 180) < 0.00001:
-                    point_list[f][1], point_list[f][0] = up_limits, down_limits
-                elif abs(angle) < 0.00001:
-                    point_list[f][0], point_list[f][1] = up_limits, down_limits
-            [[top, bottom], [left, right], [front, back]] = point_list
-        else:
-            top, bottom, left, right, front, back = self.get_up_down_return_list(
-                modifier, axis, up_limits, down_limits, data)
-
-        self.simple_modifier_limits_bound[:] = (right[0], back[1], top[2]), (left[0], front[1], bottom[2],)
+        #     point_list = [[top, bottom], [left, right], [front, back]]
+        #     for f in range(point_list.__len__()):
+        #         i = point_list[f][0]
+        #         j = point_list[f][1]
+        #         angle = self.point_to_angle(i, j, f, axis_)
+        #         if abs(angle - 180) < 0.00001:
+        #             point_list[f][1], point_list[f][0] = up_limits, down_limits
+        #         elif abs(angle) < 0.00001:
+        #             point_list[f][0], point_list[f][1] = up_limits, down_limits
+        #     [[top, bottom], [left, right], [front, back]] = point_list
+        # else:
+        #     top, bottom, left, right, front, back = self.get_up_down_return_list(
+        #         modifier, axis, up_limits, down_limits, data)
+        #
+        # self.simple_modifier_limits_bound[:] = (right[0], back[1], top[2]), (left[0], front[1], bottom[2],)
 
 
 class Empty(UpdateAndGetData):
+    empty_object: "str" = ""
+
+    def update_empty(self):
+        if self.origin_mode != 'NOT':
+            obj, _ = self.empty_new(self.object, self.simple_modifier)
+            self.empty_object = obj.name
+            self.set_empty_obj_matrix()
+        elif self.simple_modifier.origin:  # 不对原点进行操作但是还但在原点物体
+            ...
+
+    def set_empty_obj_matrix(self):
+        tow = [2] * 3
+
+        empty_object = bpy.context.scene.objects.get(self.empty_object, None)
+        if not empty_object:
+            return
+
+        matrix = self.object.matrix_world
+        down_point, up_point = self.down_point, self.up_point
+        down_limits, up_limits = self.simple_modifier_limits_co
+
+        origin_mode = self.origin_mode
+        if origin_mode == 'UP_LIMITS':
+            empty_object.matrix_world.translation = matrix @ up_limits
+        elif origin_mode == 'DOWN_LIMITS':
+            empty_object.matrix_world.translation = matrix @ down_limits
+        elif origin_mode == 'LIMITS_MIDDLE':
+            empty_object.matrix_world.translation = self.set_reduce(
+                self.set_reduce(matrix @ up_limits, matrix @ down_limits, '+'), tow, '/')
+        elif origin_mode == 'MIDDLE':
+            empty_object.matrix_world.translation = self.set_reduce(
+                self.set_reduce(matrix @ up_point, matrix @ down_point, '+'), tow, '/')
+
     @classmethod
     def empty_new(cls, obj, mod):
         """新建空物体作为轴来使用
@@ -624,7 +634,6 @@ class Empty(UpdateAndGetData):
 
     def empty_remove(self):
         ...
-
 
 
 class GizmoUtils(Empty):

@@ -2,10 +2,10 @@ import bpy
 from bpy.types import Operator
 from bpy.props import FloatProperty, StringProperty, BoolProperty
 
-from .utils import Pref
+from .utils import GizmoUtils
 
 
-class DeformAxisOperator(Operator, Pref):
+class DeformAxisOperator(Operator, GizmoUtils):
     bl_idname = 'simple_deform_gizmo.deform_axis'
     bl_label = 'deform_axis'
     bl_description = 'deform_axis operator'
@@ -24,7 +24,7 @@ class DeformAxisOperator(Operator, Pref):
         return {'RUNNING_MODAL'}
 
     def modal(self, context, event):
-        from gizmo.gizmo_group import GizmoUtils
+        from .utils import GizmoUtils
 
         mod = context.object.modifiers.active
         mod.deform_axis = self.Deform_Axis
@@ -46,7 +46,9 @@ class DeformAxisOperator(Operator, Pref):
         if not event.ctrl:
             self.pref.display_bend_axis_switch_gizmo = False
 
-        GizmoUtils.update_bound_box(context.object)
+        self.update_bound_box(self.object)
+        self.update_limits_and_bound()
+        self.update_deform_wireframe()
         return {'FINISHED'}
 
 
