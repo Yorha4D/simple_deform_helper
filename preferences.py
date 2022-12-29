@@ -97,7 +97,6 @@ class SimpleDeformGizmoAddonPreferences(AddonPreferences, Pref):
                         'factor')
 
 
-@staticmethod
 def get_limits(index) -> float:
     """输入索引反回限制值
 
@@ -110,7 +109,6 @@ def get_limits(index) -> float:
     return 114
 
 
-@staticmethod
 def set_limits(value, index) -> None:
     """设置限制值
     :param value:

@@ -1,4 +1,3 @@
-import math
 
 import bpy
 from bpy.types import Gizmo
@@ -114,19 +113,20 @@ class UpdateGizmo(Gizmo, GizmoUtils, Pref):
             self.matrix_basis.translation = matrix @ self.down_limits
 
     def update_header_text(self, context):
-        translations = lambda tex: bpy.app.translations.pgettext(tex)
+        def tr(te):
+            return bpy.app.translations.pgettext(te)
 
         if (self.simple_modifier.deform_method in ('TWIST', 'BEND')) and (self.control_mode in ('angle',)):
-            text = translations("Angle") + ':{}'.format(degrees(self.simple_modifier.angle))
+            text = tr("Angle") + ':{}'.format(degrees(self.simple_modifier.angle))
         elif 'up_limits' == self.control_mode:
-            text = translations("Upper limit") + ':{}'.format(self.simple_modifier_up_limits_value)
+            text = tr("Upper limit") + ':{}'.format(self.simple_modifier_up_limits_value)
         elif 'down_limits' == self.control_mode:
-            text = translations("Down limit") + ':{}'.format(self.simple_modifier_down_limits_value)
+            text = tr("Down limit") + ':{}'.format(self.simple_modifier_down_limits_value)
         else:
-            text = translations("Coefficient") + ':{}'.format(self.simple_modifier.factor)
+            text = tr("Coefficient") + ':{}'.format(self.simple_modifier.factor)
         text += '       '
-        text += translations(self.object_property.bl_rna.properties[
-                                 'origin_mode'].enum_items[self.object_property.origin_mode].name)
+        text += tr(self.object_property.bl_rna.properties[
+                       'origin_mode'].enum_items[self.object_property.origin_mode].name)
         context.area.header_text_set(text)
 
 

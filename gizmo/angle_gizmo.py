@@ -1,6 +1,5 @@
 from bpy.types import Gizmo
-from mathutils import Vector, Euler, Matrix
-from math import pi
+from mathutils import Vector, Matrix
 
 from ..utils import GizmoUtils
 
@@ -27,7 +26,7 @@ class AngleGizmo(Gizmo, GizmoUtils):
     scale_basis: float
     float_angle_value: float
     alpha: float
-    color: "tuple[float]"
+    color: "tuple[float,float,float]"
     mouse_dpi = 10
     matrix_basis: "Matrix"
 
@@ -61,15 +60,11 @@ class AngleGizmo(Gizmo, GizmoUtils):
         matrix.translation = translation
         self.matrix_basis = self.object.matrix_world @ matrix
 
-    def update(self):
-        self.update_deform_wireframe(self.object)
-        self.update_matrix()
-
     def setup(self):
         self.load_custom_shape_gizmo()
         self.add_handler()
         self.scale_basis = .1
-        self.color = (1, .5, 1)
+        self.color = (1., .5, 1.)
         self.alpha = .5
         self.update_bound_box(self.object)
         self.update_matrix()

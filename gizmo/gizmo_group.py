@@ -30,6 +30,8 @@ class CustomGizmo(Gizmo, GizmoUtils):
             self.custom_shape[self.draw_type], select_id=select_id)
 
     def invoke(self, context, event):
+        self.init_event(event)
+        self.init_invoke(context, event)
         return {"RUNNING_MODAL"}
 
     def modal(self, context, event, tweak):
@@ -149,7 +151,6 @@ class SimpleDeformGizmoGroup(GizmoGroup, GizmoUtils, Pref):
     def refresh(self, context):
         self.update_property()
         self.add_handler()
-
 
         if self.need_update:
             print("需要更新")

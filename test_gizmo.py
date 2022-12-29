@@ -1,9 +1,3 @@
-# Example of a group that edits a single property
-# using the predefined gizmo arrow.
-#
-# Usage: Select a light in the 3D view and drag the arrow at it's rear
-# to change it's energy value.
-#
 import bpy
 from bpy.types import (
     GizmoGroup,
@@ -16,11 +10,12 @@ class MyLightWidgetGroup(GizmoGroup):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'WINDOW'
     bl_options = {'3D', 'PERSISTENT'}
+    energy_gizmo: "bpy.types.Gizmo"
 
     @classmethod
     def poll(cls, context):
         ob = context.object
-        return (ob and ob.type == 'MESH')
+        return ob and ob.type == 'MESH'
 
     def setup(self, context):
         # Arrow gizmo has one 'offset' property we can assign to the light energy.

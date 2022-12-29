@@ -29,7 +29,7 @@ class SimpleDeformGizmoGroupDisplayBendAxiSwitchGizmo(GizmoGroup, GizmoUtils, Pr
         simple = cls.simple_deform_poll(context)
         bend = simple and (
                 context.object.modifiers.active.deform_method == 'BEND')
-        switch_axis = (pref.display_bend_axis_switch_gizmo == True)
+        switch_axis = pref.display_bend_axis_switch_gizmo is True
         return switch_axis and bend
 
     def setup(self, context):

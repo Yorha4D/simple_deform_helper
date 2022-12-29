@@ -2,7 +2,6 @@ import bgl
 import blf
 import bpy
 import gpu
-import numpy as np
 from gpu_extras.batch import batch_for_shader
 from mathutils import Vector
 
@@ -25,7 +24,7 @@ class Handler:
     @classmethod
     def draw_scale_text(cls, ob):
         if (ob.scale != Vector((1, 1, 1))) and not cls.handle_text:
-            cls.handle_text = bpy.types.SpaceView3D.draw_handler_add(cls.draw_str, (), 'WINDOW', 'POST_PIXEL')
+            cls.handle_text = bpy.types.SpaceView3D.draw_handler_add(Draw3D.draw_str, (), 'WINDOW', 'POST_PIXEL')
 
     @classmethod
     def del_handler_text(cls):
@@ -60,15 +59,14 @@ class Draw3D(Handler):
     @classmethod
     def draw_3d_shader(cls, pos, indices, color=None, *, shader_name='3D_UNIFORM_COLOR', draw_type='LINES'):
         """
-        :param draw_type:
-        :param shader_name:
-        :param color:
-        :param indices:
         :param pos:
-        :type pos:list ((0,0,0),(1,1,1))
-        2D_FLAT_COLOR - 2D_IMAGE - 2D_SMOOTH_COLOR - 2D_UNIFORM_COLOR - 3D_FLAT_COLOR - 3D_SMOOTH_COLOR - 3D_UNIFORM_COLOR - 3D_POLYLINE_FLAT_COLOR - 3D_POLYLINE_SMOOTH_COLOR - 3D_POLYLINE_UNIFORM_COLOR
-        ('POINTS', 'LINES', 'TRIS', 'LINE_STRIP', 'LINE_LOOP','TRI_STRIP',
-        'TRI_FAN', 'LINES_ADJ', 'TRIS_ADJ', 'LINE_STRIP_ADJ')
+        :param indices:
+        :param color:
+        :param shader_name:
+        :param draw_type: :param shader_name: :param color: :param indices: :param pos: :type pos:list ((0,0,0),(1,1,
+        1)) 2D_FLAT_COLOR - 2D_IMAGE - 2D_SMOOTH_COLOR - 2D_UNIFORM_COLOR - 3D_FLAT_COLOR - 3D_SMOOTH_COLOR -
+        3D_UNIFORM_COLOR - 3D_POLYLINE_FLAT_COLOR - 3D_POLYLINE_SMOOTH_COLOR - 3D_POLYLINE_UNIFORM_COLOR ('POINTS',
+        'LINES', 'TRIS', 'LINE_STRIP', 'LINE_LOOP','TRI_STRIP', 'TRI_FAN', 'LINES_ADJ', 'TRIS_ADJ', 'LINE_STRIP_ADJ')
         `NONE`, `ALWAYS`, `LESS`, `LESS_EQUAL`, `EQUAL`, `GREATER` and `GREATER_EQUAL`
         """
 
@@ -143,7 +141,7 @@ class Draw3D(Handler):
     @classmethod
     def draw_box(cls, matrix):
         coords = cls.c_matrix(matrix, cls.co_to_bound(cls.object_max_min_co))
-        cls.draw_3d_shader(coords, G_INDICES, cls.pref.fget().bound_box_color)
+        cls.draw_3d_shader(coords, G_INDICES, cls.pref.fget(None).bound_box_color)
 
     @classmethod
     def draw_limits_bound_box(cls, matrix):
@@ -157,7 +155,7 @@ class Draw3D(Handler):
             cls.draw_3d_shader(
                 cls.c_matrix(matrix, cls.co_to_bound(cls.simple_modifier_limits_bound)),
                 G_INDICES,
-                cls.pref.fget().limits_bound_box_color
+                cls.pref.fget(None).limits_bound_box_color
             )
 
     def draw_limits_line(self, matrix):
@@ -196,7 +194,7 @@ class Draw3D(Handler):
                 cls.draw_3d_shader(
                     ver,
                     indices,
-                    cls.pref.fget().deform_wireframe_color,
+                    cls.pref.fget(None).deform_wireframe_color,
                 )
 
     def is_draw_box(self, context):

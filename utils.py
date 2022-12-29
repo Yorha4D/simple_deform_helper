@@ -145,9 +145,10 @@ class Property(CustomShape):
         return (self.simple_modifier_up_limits_value + self.simple_modifier_down_limits_value) / 2
 
     @property
-    def object_property(self) -> "preferences.SimpleDeformGizmoObjectPropertyGroup":
+    def object_property(self):
         """反回物体的插件属性
-        :return:
+        # from .preferences import SimpleDeformGizmoObjectPropertyGroup
+        :return: SimpleDeformGizmoObjectPropertyGroup
         """
         return self.get_origin_property_group(self.simple_modifier, self.object)
 
@@ -192,9 +193,9 @@ class Calculation(Property):
     def set_reduce(cls, list_a, list_b, operation_type='-') -> list:
         """
         :param list_a: 列表a
-        :type list_a: list or tuple
+        :type list_a: iterator
         :param list_b: 列表b
-        :type list_b:list or tuple
+        :type list_b: iterator
         :param operation_type :运算方法Enumerator in ['+','-','*','/'].
         :type operation_type :str
         :return list: 反回运算后的列表
@@ -256,8 +257,8 @@ class Calculation(Property):
         c = mat @ Vector((min_x, max_y, min_z))
         d = mat @ Vector((min_x, min_y, max_z))
 
-        def pos_get(a, b):
-            return cls.set_reduce(cls.set_reduce(a, b, '+'), [2, 2, 2], '/')
+        def pos_get(e, f):
+            return cls.set_reduce(cls.set_reduce(e, f, '+'), [2, 2, 2], '/')
 
         top = Vector(pos_get(a, d))
         bottom = Vector(pos_get(c, b))
@@ -320,6 +321,30 @@ class UpdateAndGetData(Calculation):
         return False
 
     @classmethod
+    def get_depsgraph(cls, obj: 'bpy.context.object'):
+        """
+        :param obj: 要被评估的物体
+        :type obj: bpy.types.Object
+        :return bpy.types.Object: 反回评估后的物体,计算应用修改器和实例化的数据
+        如果未输入物休将会评估活动物体
+        """
+        context = bpy.context
+        if obj is None:
+            obj = context.object
+        depsgraph = context.evaluated_depsgraph_get()
+        return obj.evaluated_get(depsgraph)
+
+    @classmethod
+    def link_active_collection(cls,
+                               obj: 'bpy.context.object') -> \
+            'bpy.context.view_layer.active_layer_collection.collection.objects':
+        context = bpy.context
+        if obj.name not in context.view_layer.active_layer_collection.collection.objects:
+            context.view_layer.active_layer_collection.collection.objects.link(
+                obj)
+        return context.view_layer.active_layer_collection.collection.objects
+
+    @classmethod
     def get_origin_bounds(cls, obj: 'bpy.context.object') -> list:
         modifiers_list = {}
         for mod in obj.modifiers:
@@ -339,13 +364,13 @@ class UpdateAndGetData(Calculation):
         return list(bound)
 
     @classmethod
-    def get_mesh_max_min_co(cls, obj: 'bpy.context.object') -> tuple:
+    def get_mesh_max_min_co(cls, obj: 'bpy.context.object') -> "list[Vector]":
         """获取网格的最大最小坐标
 
         :param obj:
         :return:
         """
-        obj
+        list_vertices: np.array
         if obj.type == 'MESH':
             ver_len = obj.data.vertices.__len__()
             list_vertices = np.zeros(ver_len * 3, dtype=np.float32)
@@ -356,76 +381,8 @@ class UpdateAndGetData(Calculation):
             list_vertices = np.zeros(ver_len * 3, dtype=np.float32)
             obj.data.points.foreach_get('co', list_vertices)
             list_vertices = list_vertices.reshape(ver_len, 3)
+
         return [Vector(list_vertices.min(axis=0)), Vector(list_vertices.max(axis=0))]
-
-    @classmethod
-    def get_up_down(cls, mod, axis, top, bottom, left, right, front, back):
-        """获取向上轴和向下轴
-
-        :param mod:
-        :param axis:
-        :param top:
-        :param bottom:
-        :param left:
-        :param right:
-        :param front:
-        :param back:
-        :return:
-        """
-        if 'BEND' == mod.deform_method:
-            if axis in ('X', 'Y'):
-                return top, bottom
-            elif axis == 'Z':
-                return right, left
-        else:
-            if axis == 'X':
-                return right, left
-            elif axis == 'Y':
-                return back, front
-            elif axis == 'Z':
-                return top, bottom
-
-    @classmethod
-    def from_simple_modifiers_get_limits_pos(cls, mod, data):
-        """从简易形变修改器获取限制点
-
-        :param mod:
-        :param data:
-        :return:
-        """
-        top, bottom, left, right, front, back = data
-        up_limits = mod.limits[1]
-        down_limits = mod.limits[0]
-        axis = mod.deform_axis
-
-        up: "Vector"
-        down: "Vector"
-
-        if mod.origin:
-            vector_axis = cls.get_vector_axis(mod)
-            origin_mat = mod.origin.matrix_world.to_3x3()
-            axis_ = origin_mat @ vector_axis
-            point_lit = [[top, bottom], [left, right], [front, back]]
-
-            for f in range(point_lit.__len__()):
-                i = point_lit[f][0]
-                j = point_lit[f][1]
-                angle = cls.point_to_angle(i, j, f, axis_)
-                if abs(angle - 180) < 0.1:
-                    up, down = j, i
-                elif abs(angle) < 0.1:
-                    up, down = i, j
-        else:
-            up, down = cls.get_up_down(mod, axis, top, bottom,
-                                       left, right, front, back)
-
-        print("get\t\t", up, down)
-        e = lambda a: Vector((cls.set_reduce(down, cls.set_reduce(cls.set_reduce(
-            up, down, '-'), [a, a, a], '*'), '+')))
-
-        up_ = e(up_limits)
-        down_ = e(down_limits)
-        return (up, down), (up_, down_)
 
     @classmethod
     def update_bound_box(cls, obj):
@@ -438,7 +395,7 @@ class UpdateAndGetData(Calculation):
         cls.object_max_min_co[:] = cls.get_mesh_max_min_co(obj)
         # print("更新后", cls.object_max_min_co, cls)
 
-    def update_deform_wireframe(self, ):
+    def update_deform_wireframe(self):
         """更新形变框
         只能在模态内更新
         """
@@ -516,36 +473,54 @@ class UpdateAndGetData(Calculation):
         """更新上下限边界框
         """
         modifier = self.simple_modifier
-        axis = self.simple_modifier_deform_axis
 
         top, bottom, left, right, front, back = self.each_face_pos()
-        print(self.each_face_pos())
 
-        # (up_point, down_point), (up_limits, down_limits) = self.from_simple_modifiers_get_limits_pos(modifier, (
-        #     top, bottom, left, right, front, back))
-
-        # self.simple_modifier_limits_co[:] = down_limits, up_limits
-        # self.simple_modifier_point_co[:] = down_point, up_point
+        up_point = Vector()
+        down_point = Vector()
 
         if modifier.origin:
             vector_axis = self.get_vector_axis(modifier)
-            origin_mat = modifier.origin.matrix_world.to_3x3()
-            axis_ = origin_mat @ vector_axis
-        #     point_list = [[top, bottom], [left, right], [front, back]]
-        #     for f in range(point_list.__len__()):
-        #         i = point_list[f][0]
-        #         j = point_list[f][1]
-        #         angle = self.point_to_angle(i, j, f, axis_)
-        #         if abs(angle - 180) < 0.00001:
-        #             point_list[f][1], point_list[f][0] = up_limits, down_limits
-        #         elif abs(angle) < 0.00001:
-        #             point_list[f][0], point_list[f][1] = up_limits, down_limits
-        #     [[top, bottom], [left, right], [front, back]] = point_list
-        # else:
-        #     top, bottom, left, right, front, back = self.get_up_down_return_list(
-        #         modifier, axis, up_limits, down_limits, data)
-        #
-        # self.simple_modifier_limits_bound[:] = (right[0], back[1], top[2]), (left[0], front[1], bottom[2],)
+
+            point_list = [[top, bottom], [left, right], [front, back]]
+            for f in range(point_list.__len__()):
+                a = point_list[f][0]
+                b = point_list[f][1]
+                angle = self.point_to_angle(a, b, f, vector_axis)
+
+                if abs(angle - 180) < 0.00001:
+                    up_point, down_point = point_list[f][1], point_list[f][0] = b, a
+                elif abs(angle) < 0.00001:
+                    up_point, down_point = point_list[f][1], point_list[f][0] = a, b
+
+            [[top, bottom],
+             [left, right],
+             [front, back]] = point_list
+        else:
+            axis = self.simple_modifier_deform_axis
+            if 'BEND' == modifier.deform_method:
+                if axis in ('X', 'Y'):
+                    up_point, down_point = top, bottom
+                elif axis == 'Z':
+                    up_point, down_point = right, left
+            else:
+                if axis == 'X':
+                    up_point, down_point = right, left
+                elif axis == 'Y':
+                    up_point, down_point = back, front
+                elif axis == 'Z':
+                    up_point, down_point = top, bottom
+
+        def c_limits(value):
+            r = self.__class__.set_reduce
+            return Vector((r(down_point, r(r(up_point, down_point, '-'), [value, value, value], '*'), '+')))
+
+        self.simple_modifier_limits_co[:] = [c_limits(self.simple_modifier_down_limits_value),
+                                             c_limits(self.simple_modifier_up_limits_value),
+                                             ]
+        self.simple_modifier_point_co[:] = down_point, up_point
+
+        self.simple_modifier_limits_bound[:] = (right[0], back[1], top[2]), (left[0], front[1], bottom[2],)
 
 
 class Empty(UpdateAndGetData):
@@ -662,30 +637,6 @@ class GizmoUtils(Empty):
         if number is positive return True else return False
         """
         return number == abs(number)
-
-    @classmethod
-    def get_depsgraph(cls, obj: 'bpy.context.object'):
-        """
-        :param obj: 要被评估的物体
-        :type obj: bpy.types.Object
-        :return bpy.types.Object: 反回评估后的物体,计算应用修改器和实例化的数据
-        如果未输入物休将会评估活动物体
-        """
-        context = bpy.context
-        if obj is None:
-            obj = context.object
-        depsgraph = context.evaluated_depsgraph_get()
-        return obj.evaluated_get(depsgraph)
-
-    @classmethod
-    def link_active_collection(cls,
-                               obj: 'bpy.context.object') -> \
-            'bpy.context.view_layer.active_layer_collection.collection.objects':
-        context = bpy.context
-        if obj.name not in context.view_layer.active_layer_collection.collection.objects:
-            context.view_layer.active_layer_collection.collection.objects.link(
-                obj)
-        return context.view_layer.active_layer_collection.collection.objects
 
     @classmethod
     def simple_deform_poll(cls, context: 'bpy.context') -> bool:
