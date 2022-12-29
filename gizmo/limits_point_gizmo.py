@@ -1,4 +1,3 @@
-
 import bpy
 from bpy.types import Gizmo
 from math import pi, sqrt, degrees
@@ -140,12 +139,23 @@ class ViewSimpleDeformGizmo(UpdateGizmo):
         {'id': 'down_limits_value', 'type': 'FLOAT', 'array_length': 1},
     )
 
+    def update(self):
+
+        self.update_bound_box(self.object)
+        self.update_prop_value()
+        self.update_deform_wireframe(change_co=True)
+        self.update_limits_and_bound()
+
+        self.update_gizmo_translation()
+        self.update_empty()
+        self.update_deform_wireframe()
+        self.add_handler()
+
     def setup(self):
         self.load_custom_shape_gizmo()
-        self.update_bound_box(self.object)
-        self.update_empty()
 
-        self.add_handler()
+        self.update_bound_box(self.object)
+        self.update_limits_and_bound()
 
     def draw(self, context):
         self.draw_custom_shape(self.custom_shape[self.draw_type])
@@ -156,6 +166,14 @@ class ViewSimpleDeformGizmo(UpdateGizmo):
             self.custom_shape[self.draw_type], select_id=select_id)
         self.update_gizmo_translation()
 
+    def init_prop(self):
+        down, up = self._limits
+
+        if self.control_mode == "up_limits":
+            self.target_set_value('up_limits_value', up)
+        elif self.control_mode == "down_limits":
+            self.target_set_value('down_limits_value', down)
+
     def invoke(self, context, event):
         """TODO 简化参数
         :param context:
@@ -164,29 +182,13 @@ class ViewSimpleDeformGizmo(UpdateGizmo):
         """
         self.init_invoke(context, event)
         self.init_event(event)
-
-        down, up = self._limits
-
-        if self.control_mode == "up_limits":
-            self.target_set_value('up_limits_value', up)
-        elif self.control_mode == "down_limits":
-            self.target_set_value('down_limits_value', down)
-
-        self.update_bound_box(self.object)
-        self.update_deform_wireframe()
-        self.update_empty()
+        self.init_prop()
+        self.update()
         return {'RUNNING_MODAL'}
 
     def modal(self, context, event, tweak):
         self.init_modal_data(context, event, tweak)
-        self.update_bound_box(self.object)
-        self.update_prop_value()
-        self.update_limits_and_bound()
-        self.update_gizmo_translation()
-
-        self.update_empty()
-        self.update_deform_wireframe()
-        self.add_handler()
+        self.update()
         return self.event_ops()
 
     def refresh(self, context):

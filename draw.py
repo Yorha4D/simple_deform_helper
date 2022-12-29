@@ -163,19 +163,16 @@ class Draw3D(Handler):
         :return:
         """
         bgl.glDisable(bgl.GL_DEPTH_TEST)
-        # if :
-        #     # draw  line
-        #     cls.draw_3d_shader(cls.simple_modifier_point_co, ((1, 0),), (1, 1, 0, 0.3))
+        limits = self.__class__.simple_modifier_limits_co
+        point = self.__class__.simple_modifier_point_co
+        if point:
+            # draw  line
+            self.draw_3d_shader(self.c_matrix(matrix, point), ((1, 0),), (1, 1, 0.5, 0.3))
 
-        co = self.__class__.simple_modifier_limits_co
-
-        if co:
-            # draw limits line
-            self.draw_3d_shader(self.c_matrix(matrix, co), ((1, 0),), (1, 1, 0, 0.5))
+        if limits:
+            self.draw_3d_shader(self.c_matrix(matrix, limits), ((1, 0),), (1, 1, 0, 0.5))
 
             # TODO draw pos
-            # cls.draw_3d_shader([line_pos[1]], (), (0, 1, 0, 0.5),
-            #                    shader_name='3D_UNIFORM_COLOR', draw_type='POINTS')
 
     @classmethod
     def draw_deform_bound(cls, obj, modifier):
@@ -224,6 +221,7 @@ class Draw3D(Handler):
             # GizmoUtils.empty_new(obj, modifier)
 
     def draw_bound_box(self):
+
         gpu.state.blend_set('ALPHA')
         gpu.state.line_width_set(1)
         bgl.glEnable(bgl.GL_BLEND)

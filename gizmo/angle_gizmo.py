@@ -60,14 +60,29 @@ class AngleGizmo(Gizmo, GizmoUtils):
         matrix.translation = translation
         self.matrix_basis = self.object.matrix_world @ matrix
 
+    def update(self):
+
+        self.update_bound_box(self.object)
+        self.update_angle()
+        self.update_deform_wireframe(change_co=True)
+        self.update_limits_and_bound()
+
+        self.update_empty()
+        self.update_deform_wireframe()
+
+        self.update_matrix()
+        self.add_handler()
+
     def setup(self):
         self.load_custom_shape_gizmo()
         self.add_handler()
         self.scale_basis = .1
         self.color = (1., .5, 1.)
         self.alpha = .5
+
         self.update_bound_box(self.object)
-        self.update_matrix()
+        self.update_limits_and_bound()
+
 
     def draw(self, context):
         self.draw_custom_shape(self.custom_shape[self.draw_type])
@@ -82,15 +97,10 @@ class AngleGizmo(Gizmo, GizmoUtils):
         self.init_invoke(context, event)
         self.float_angle_value = self.target_get_value('angle')
         self.init_event(event)
-        self.update_bound_box(self.object)
-        self.update_deform_wireframe()
         return {"RUNNING_MODAL"}
 
     def modal(self, context, event, tweak):
         self.init_modal_data(context, event, tweak)
-        self.update_bound_box(self.object)
-        self.update_angle()
-        self.update_deform_wireframe()
-        self.update_empty()
-        self.add_handler()
+
+        self.update()
         return self.event_ops()

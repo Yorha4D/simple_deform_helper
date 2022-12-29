@@ -6,8 +6,15 @@ import numpy as np
 from bpy.types import AddonPreferences
 from mathutils import Vector, Matrix
 
-from .data import G_ADDON_NAME, G_NAME, G_INDICES, G_MODIFIERS_PROPERTY, G_CON_LIMIT_NAME, G_GizmoCustomShapeDict
-from .draw import Draw3D
+from .data import (G_ADDON_NAME,
+                   G_NAME,
+                   G_INDICES,
+                   G_MODIFIERS_PROPERTY,
+                   G_CON_LIMIT_NAME,
+                   G_GizmoCustomShapeDict,
+                   G_MODIFIERS_COPY_PROPERTY,
+                   )
+from .draw import Draw3D, Handler
 
 
 class NotUse:
@@ -100,6 +107,10 @@ class Property(CustomShape):
     def simple_modifier(self) -> "bpy.types.Modifier":
         """反回活动物体的简易形变修改器"""
         return get_active_simple_modifier()
+
+    @property
+    def simple_modifiers(self) -> "list[bpy.types.Modifier]":
+        return [mo for mo in self.object.modifiers if mo.type == 'SIMPLE_DEFORM']
 
     @property
     def simple_modifier_down_limits_value(self) -> "float":
@@ -384,24 +395,26 @@ class UpdateAndGetData(Calculation):
 
         return [Vector(list_vertices.min(axis=0)), Vector(list_vertices.max(axis=0))]
 
-    @classmethod
-    def update_bound_box(cls, obj):
+    def update_bound_box(self, obj):
         """更新边界框和形变框
 
         :param obj:
         :return:
         """
-        # print("更新前", cls.object_max_min_co, cls)
-        cls.object_max_min_co[:] = cls.get_mesh_max_min_co(obj)
-        # print("更新后", cls.object_max_min_co, cls)
+        # print("更新前", self.object_max_min_co,self)
+        self.object_max_min_co[:] = self.get_mesh_max_min_co(obj)
+        # print("更新后", self.object_max_min_co, self)
 
-    def update_deform_wireframe(self):
+    def update_deform_wireframe(self, change_co=False):
         """更新形变框
         只能在模态内更新
+        TODO 如果场景有形变框则不重新生成
+        使用矩阵来控制修改器的大小,而不是使用生成的网格点位置
+        将网格的矩阵设置为物休本身大小再通过旋转来控制
+        物体可以不用删,需要更改顶点
         """
         context = bpy.context
         data = bpy.data
-        matrix = self.object.matrix_world.copy()  # 物体矩阵
         vertexes = self.co_to_bound(self.object_max_min_co)
         if data.objects.get(G_NAME):
             data.objects.remove(data.objects.get(G_NAME))
@@ -422,20 +435,31 @@ class UpdateAndGetData(Calculation):
         new_object.modifiers.clear()
         subdivision = new_object.modifiers.new('1', 'SUBSURF')
         subdivision.levels = 7
-        for mo in context.object.modifiers:
-            if mo.type == 'SIMPLE_DEFORM':
-                simple_deform = new_object.modifiers.new(
-                    mo.name, 'SIMPLE_DEFORM')
-                simple_deform.deform_method = mo.deform_method
-                simple_deform.deform_axis = mo.deform_axis
-                simple_deform.lock_x = mo.lock_x
-                simple_deform.lock_y = mo.lock_y
-                simple_deform.lock_z = mo.lock_z
-                simple_deform.origin = mo.origin
-                simple_deform.limits[1] = mo.limits[1]
-                simple_deform.limits[0] = mo.limits[0]
-                simple_deform.angle = mo.angle
-                simple_deform.show_viewport = mo.show_viewport
+
+        modifiers = self.simple_modifiers  # 此物体的所有简易形变修改器
+        mod_len = len(modifiers)  # 所有简易形变修改器长度
+        active_index = modifiers.index(self.simple_modifier)  # 活动简易修改器索引
+
+        def add_mod(mod):
+            simple_deform = new_object.modifiers.new(mod.name, 'SIMPLE_DEFORM')
+
+            for prop_name in G_MODIFIERS_COPY_PROPERTY:
+                setattr(simple_deform, prop_name, getattr(mod, prop_name))
+
+            simple_deform.limits[1] = mod.limits[1]
+            simple_deform.limits[0] = mod.limits[0]
+
+        for index, mo in enumerate(modifiers):
+            if change_co:
+                add_mod(mo)
+                if index + 1 == active_index:
+                    obj = self.get_depsgraph(new_object)
+                    self.object_max_min_co[:] = self.get_mesh_max_min_co(self.get_depsgraph(obj))
+                elif index + 1 == mod_len:
+                    obj = self.get_depsgraph(new_object)
+
+            elif index == active_index:
+                add_mod(mo)
                 obj = self.get_depsgraph(new_object)
 
         new_object.hide_set(True)
@@ -457,6 +481,7 @@ class UpdateAndGetData(Calculation):
 
         obj.data.vertices.foreach_get('co', list_vertices)
         ver = np.insert(list_vertices.reshape((ver_len, 3)), 3, 1, axis=1).T
+        matrix = obj.matrix_world.copy()  # 物体矩阵
         ver[:] = np.dot(matrix, ver)
 
         ver /= ver[3, :]

@@ -45,10 +45,6 @@ class DeformAxisOperator(Operator, GizmoUtils):
 
         if not event.ctrl:
             self.pref.display_bend_axis_switch_gizmo = False
-
-        self.update_bound_box(self.object)
-        self.update_limits_and_bound()
-        self.update_deform_wireframe()
         return {'FINISHED'}
 
 

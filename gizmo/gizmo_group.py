@@ -36,8 +36,7 @@ class CustomGizmo(Gizmo, GizmoUtils):
 
     def modal(self, context, event, tweak):
         self.add_handler()
-        self.update_bound_box(self.object)
-        self.update_empty()
+        self.init_modal_data(context, event, tweak)
         return {'RUNNING_MODAL'}
 
 
@@ -154,8 +153,12 @@ class SimpleDeformGizmoGroup(GizmoGroup, GizmoUtils, Pref):
 
         if self.need_update:
             print("需要更新")
-            self.update_bound_box(self.object)
-            self.update_limits_and_bound()
+
+            # self.update_bound_box(self.object)
+            # # self.update_deform_wireframe(change_co=True)
+            # self.update_limits_and_bound()
+            #
+            # # self.update_deform_wireframe()
 
     def draw_prepare(self, context):
         """TODO 更新2d切换按钮位置

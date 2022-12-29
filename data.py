@@ -1,19 +1,23 @@
 from os.path import dirname, basename, realpath
 
-G_MODIFIERS_PROPERTY = [  # copy modifier data
+G_MODIFIERS_COPY_PROPERTY = [  # 复制到形变物体的属性
+    'deform_method',
     'angle',
     'deform_axis',
-    'deform_method',
     'factor',
-    'invert_vertex_group',
-    'limits',
     'lock_x',
     'lock_y',
     'lock_z',
     'origin',
+    'show_viewport'
+]
+G_MODIFIERS_PROPERTY = [  # 存下来用来判断是否更改修改器的属性
+    'invert_vertex_group',
+    'limits',
     'show_expanded',
     'show_in_editmode',
     'vertex_group',
+    *G_MODIFIERS_COPY_PROPERTY,
 ]
 
 G_INDICES = (
@@ -21,8 +25,8 @@ G_INDICES = (
     (4, 5), (4, 6), (5, 7), (6, 7),
     (0, 4), (1, 5), (2, 6), (3, 7))
 
-G_NAME = 'ViewSimpleDeformGizmo_Deform'  # 形变框名称
-G_CON_LIMIT_NAME = G_NAME + 'constraints_limit_rotation'  # 约束名称
+G_NAME = 'ViewSimpleDeformGizmo_Deform_'  # 形变框名称
+G_CON_LIMIT_NAME = 'Copy_Limits_constraints_limit_rotation'  # 约束名称
 G_ADDON_NAME = basename(dirname(realpath(__file__)))  # "simple_deform_helper"
 
 G_ORIGIN_MODE_ITEMS = (
