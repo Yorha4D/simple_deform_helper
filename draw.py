@@ -40,6 +40,7 @@ class Handler:
 
         if data.objects.get(G_NAME):
             data.objects.remove(data.objects.get(G_NAME))
+            
 
         cls.del_handler_text()
 

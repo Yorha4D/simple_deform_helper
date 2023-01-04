@@ -346,14 +346,12 @@ class UpdateAndGetData(Calculation):
         return obj.evaluated_get(depsgraph)
 
     @classmethod
-    def link_active_collection(cls,
-                               obj: 'bpy.context.object') -> \
-            'bpy.context.view_layer.active_layer_collection.collection.objects':
-        context = bpy.context
-        objects = context.view_layer.active_layer_collection.collection.objects
-        if obj.name not in objects:
-            objects.link(obj)
-        return objects
+    def link_active_collection(cls, obj: bpy.types.Object):
+        col = bpy.context.collection
+        col = bpy.context.scene.collection
+        if obj.name not in col.objects:
+            col.objects.link(obj)
+        return col.objects
 
     @classmethod
     def get_origin_bounds(cls, obj: 'bpy.context.object') -> list:
@@ -404,23 +402,8 @@ class UpdateAndGetData(Calculation):
         # print("更新前", self.object_max_min_co,self)
         self.object_max_min_co[:] = self.get_mesh_max_min_co(obj)
         # print("更新后", self.object_max_min_co, self)
-    
-    
 
     def update_deform_wireframe(self, change_co=False):
-        
-        def run():
-            self.update_deform(change_co=change_co)
-
-        from .timers import update_deform_queue
-        update_deform_queue.put(run)
-        
-        while not update_deform_queue.empty():
-            print("a")
-        print("emmm")
-
-        
-    def update_deform(self,change_co):
         """更新形变框
         只能在模态内更新
         TODO 如果场景有形变框则不重新生成
@@ -428,7 +411,6 @@ class UpdateAndGetData(Calculation):
         将网格的矩阵设置为物休本身大小再通过旋转来控制
         物体可以不用删,需要更改顶点
         """
-        
         context = bpy.context
         data = bpy.data
         vertexes = self.co_to_bound(self.object_max_min_co)
@@ -442,11 +424,8 @@ class UpdateAndGetData(Calculation):
         mesh.update()
 
         new_object = data.objects.new(G_NAME, mesh)
-        
 
         self.link_active_collection(new_object)
-        
-        
 
         if new_object.parent != self.object:
             new_object.parent = self.object
