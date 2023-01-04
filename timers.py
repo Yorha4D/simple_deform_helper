@@ -1,6 +1,7 @@
 import bpy
 from bpy.app import timers
 from bpy.app.handlers import persistent, undo_pre, undo_post
+from queue import Queue
 
 from .data import G_NAME
 
@@ -41,9 +42,19 @@ def update_timers():
     remove_not_use_empty()
     return 3.0
 
+update_deform_queue = Queue()
+
+@persistent
+def update_deform():
+    if not update_deform_queue.empty():
+        update_deform_queue.get()()
+        
+    return 1/60
+
 
 def register():
     timers.register(update_timers, persistent=True)
+    timers.register(update_deform, persistent=True)
     undo_pre.append(clear_data_pre)
     undo_post.append(clear_data_post)
 
@@ -51,5 +62,9 @@ def register():
 def unregister():
     if timers.is_registered(update_timers):
         timers.unregister(update_timers)
+        
+    if timers.is_registered(update_deform):
+        timers.unregister(update_deform)
+
     undo_pre.remove(clear_data_pre)
     undo_post.remove(clear_data_post)

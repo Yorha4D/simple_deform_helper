@@ -141,7 +141,7 @@ class SimpleDeformGizmoGroup(GizmoGroup, GizmoUtils, Pref):
 
     def setup(self, context):
         self.set_simple_control_gizmo()
-        # self.set_axis_switch_gizmo()
+        self.set_axis_switch_gizmo()
         self.set_angle_gizmo()
         self.add_handler()
 
@@ -154,12 +154,6 @@ class SimpleDeformGizmoGroup(GizmoGroup, GizmoUtils, Pref):
         if self.need_update:
             print("需要更新")
 
-            # self.update_bound_box(self.object)
-            # # self.update_deform_wireframe(change_co=True)
-            # self.update_limits_and_bound()
-            #
-            # # self.update_deform_wireframe()
-
     def draw_prepare(self, context):
         """TODO 更新2d切换按钮位置
 
@@ -171,6 +165,7 @@ class SimpleDeformGizmoGroup(GizmoGroup, GizmoUtils, Pref):
     def update_property(self):
         self.update_angle_property()
         self.update_limits_property()
+        self.update_2d_button_translation()
 
     def update_angle_property(self):
         self.gizmo_angle.target_set_prop('angle', self.simple_modifier, 'angle')
