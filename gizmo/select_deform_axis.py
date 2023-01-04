@@ -4,7 +4,7 @@ from bpy.types import GizmoGroup
 from mathutils import Euler, Vector
 
 from .gizmo_group import CustomGizmo
-from ..operator import DeformAxisOperator
+from ..operators import DeformAxisOperator
 from ..utils import GizmoUtils, Pref
 
 

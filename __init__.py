@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
-from . import operator, preferences, timers, translate, gizmo
+from . import operators, preferences, timers, translate, gizmo
 
 bl_info = {
     "name": "SimpleDeformHelper",
@@ -16,7 +16,7 @@ bl_info = {
 module_tuple = (
     gizmo,
     timers,
-    operator,
+    operators,
     translate,
     preferences,
 )

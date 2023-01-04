@@ -280,10 +280,10 @@ class Calculation(Property):
         return top, bottom, left, right, front, back
 
     @classmethod
-    def each_face_pos(cls, mat: 'Matrix' = None):
+    def each_face_pos(cls, mat=None):
         """获取每个面的点,用作选择轴的点
 
-        :param mat:
+        :param mat:Matrix
         :return:
         """
         if mat is None:
@@ -332,7 +332,7 @@ class UpdateAndGetData(Calculation):
         return False
 
     @classmethod
-    def get_depsgraph(cls, obj: 'bpy.context.object'):
+    def get_depsgraph(cls, obj):
         """
         :param obj: 要被评估的物体
         :type obj: bpy.types.Object
@@ -346,15 +346,14 @@ class UpdateAndGetData(Calculation):
         return obj.evaluated_get(depsgraph)
 
     @classmethod
-    def link_active_collection(cls, obj: bpy.types.Object):
-        col = bpy.context.collection
+    def link_active_collection(cls, obj):
         col = bpy.context.scene.collection
         if obj.name not in col.objects:
             col.objects.link(obj)
         return col.objects
 
     @classmethod
-    def get_origin_bounds(cls, obj: 'bpy.context.object') -> list:
+    def get_origin_bounds(cls, obj) -> list:
         modifiers_list = {}
         for mod in obj.modifiers:
             if (mod == obj.modifiers.active) or (modifiers_list != {}):
@@ -411,86 +410,7 @@ class UpdateAndGetData(Calculation):
         将网格的矩阵设置为物休本身大小再通过旋转来控制
         物体可以不用删,需要更改顶点
         """
-        context = bpy.context
-        data = bpy.data
-        vertexes = self.co_to_bound(self.object_max_min_co)
-        if data.objects.get(G_NAME):
-            data.objects.remove(data.objects.get(G_NAME))
-
-        if data.meshes.get(G_NAME):
-            data.meshes.remove(data.meshes.get(G_NAME))
-        mesh = data.meshes.new(G_NAME)
-        mesh.from_pydata(vertexes, G_INDICES, [])
-        mesh.update()
-
-        new_object = data.objects.new(G_NAME, mesh)
-
-        self.link_active_collection(new_object)
-
-        if new_object.parent != self.object:
-            new_object.parent = self.object
-
-        new_object.modifiers.clear()
-        subdivision = new_object.modifiers.new('1', 'SUBSURF')
-        subdivision.levels = 7
-
-        modifiers = self.simple_modifiers  # 此物体的所有简易形变修改器
-        mod_len = len(modifiers)  # 所有简易形变修改器长度
-        active_index = modifiers.index(self.simple_modifier)  # 活动简易修改器索引
-
-        def add_mod(mod):
-            simple_deform = new_object.modifiers.new(mod.name, 'SIMPLE_DEFORM')
-
-            for prop_name in G_MODIFIERS_COPY_PROPERTY:
-                setattr(simple_deform, prop_name, getattr(mod, prop_name))
-
-            simple_deform.limits[1] = mod.limits[1]
-            simple_deform.limits[0] = mod.limits[0]
-
-        for index, mo in enumerate(modifiers):
-            if change_co:
-                add_mod(mo)
-                if index + 1 == active_index:
-                    obj = self.get_depsgraph(new_object)
-                    self.object_max_min_co[:] = self.get_mesh_max_min_co(self.get_depsgraph(obj))
-                elif index + 1 == mod_len:
-                    obj = self.get_depsgraph(new_object)
-
-            elif index == active_index:
-                add_mod(mo)
-                obj = self.get_depsgraph(new_object)
-
-        new_object.hide_set(True)
-        new_object.hide_viewport = False
-        new_object.hide_select = True
-        new_object.hide_render = True
-        new_object.hide_viewport = True
-        new_object.hide_set(True)
-        ver_len = obj.data.vertices.__len__()
-        edge_len = obj.data.edges.__len__()
-
-        key = (ver_len, edge_len)
-        list_edges = np.zeros(edge_len * 2, dtype=np.int32)
-        list_vertices = np.zeros(ver_len * 3, dtype=np.float32)
-        if key in self.numpy_data:
-            list_edges, list_vertices = self.numpy_data[key]
-        else:
-            self.numpy_data[key] = (list_edges, list_vertices)
-
-        obj.data.vertices.foreach_get('co', list_vertices)
-        ver = np.insert(list_vertices.reshape((ver_len, 3)), 3, 1, axis=1).T
-        matrix = obj.matrix_world.copy()  # 物体矩阵
-        ver[:] = np.dot(matrix, ver)
-
-        ver /= ver[3, :]
-        ver = ver.T[:, :3]
-        obj.data.edges.foreach_get('vertices', list_edges)
-        indices = list_edges.reshape((edge_len, 2))
-
-        limits = obj.modifiers.active.limits[:]
-        modifier_property = [getattr(context.object.modifiers.active, i)
-                             for i in G_MODIFIERS_PROPERTY]
-        self.deform_bound_draw_data[:] = ver, indices, limits, modifier_property, matrix
+        bpy.ops.simple_deform_gizmo.update_deform_wireframe("EXEC_DEFAULT",1,change_co=change_co)
 
     def update_limits_and_bound(self):
         """更新上下限边界框
