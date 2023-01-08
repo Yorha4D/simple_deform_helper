@@ -20,15 +20,6 @@ def remove_not_use_empty():
 @persistent
 def clear_data_pre(scene: 'bpy.types.Scene'):
     print("scene")
-    obj = bpy.context.object
-    a = id(obj.modifiers["SimpleDeform"].limits[0])
-    b = id(obj.modifiers["SimpleDeform"].limits[1])
-
-    print(a)
-    print(b)
-
-    print(hex(a))
-    print(hex(b))
 
 
 @persistent
