@@ -1,5 +1,5 @@
 # SimpleDeformHelper
-# Move to [AIGODLIKE](https://github.com/AIGODLIKE/popoti_align_helper.git)
+# Move to [AIGODLIKE](https://github.com/AIGODLIKE/simple_deform_helper)
 
 Simple Deform Modifier Visual adjustment tool
 
